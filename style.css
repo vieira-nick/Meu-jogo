@@ -123,19 +123,39 @@ button:hover{
     box-shadow:
         0 0 15px #00f7ff,
         0 0 40px rgba(0,247,255,.4);
+    /* Garante que o canvas nunca ultrapasse a tela */
+    max-width:100%;
 }
 /* =========================
-   MOBILE
+   CONTROLES MOBILE
+   Sempre visíveis — no desktop ficam discretos,
+   no celular ficam grandes e fáceis de tocar
 ========================= */
 #mobileControls{
-    margin-top:20px;
-    display:none;
+    margin-top:16px;
+    display:flex;
     flex-direction:column;
-    gap:10px;
+    align-items:center;
+    gap:8px;
 }
 .mobile-row{
     display:flex;
-    gap:10px;
+    gap:8px;
+}
+/* Botões direcionais */
+.mobile-row button,
+#mobileControls > button{
+    width:64px;
+    height:64px;
+    padding:0;
+    font-size:1.6rem;
+    border-radius:14px;
+    border-color:#00f7ff;
+    color:#00f7ff;
+    box-shadow:0 0 10px #00f7ff;
+    /* Área de toque maior no mobile */
+    touch-action:manipulation;
+    user-select:none;
 }
 /* =========================
    RESULTADOS
@@ -161,16 +181,33 @@ button:hover{
 @media(max-width:600px){
     .menu-box{
         width:100%;
+        padding:24px 16px;
+    }
+    .menu-box h1{
+        font-size:2rem;
+        text-align:center;
     }
     #hud{
         width:100%;
+        font-size:0.9rem;
     }
     #gameCanvas{
         width:100%;
         height:auto;
     }
-    #mobileControls{
-        display:flex;
+    /* Botões direcionais maiores no celular */
+    .mobile-row button,
+    #mobileControls > button{
+        width:76px;
+        height:76px;
+        font-size:1.8rem;
+    }
+    button{
+        width:100%;
+    }
+    .result-box{
+        padding:24px 16px;
+        width:100%;
     }
 }
 /* =========================
@@ -179,4 +216,6 @@ button:hover{
 .controls-info{
     margin-top:10px;
     color:#888;
+    text-align:center;
+    font-size:0.85rem;
 }
