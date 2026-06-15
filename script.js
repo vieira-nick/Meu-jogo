@@ -4,44 +4,65 @@ window.onload = function(){
    ELEMENTOS
 ========================= */
 
-const menu = document.getElementById("menu");
-const gameScreen = document.getElementById("gameScreen");
-const gameOverScreen = document.getElementById("gameOver");
-const victoryScreen = document.getElementById("victory");
+const menu             = document.getElementById("menu");
+const gameScreen       = document.getElementById("gameScreen");
+const gameOverScreen   = document.getElementById("gameOver");
+const victoryScreen    = document.getElementById("victory");
 
-const easyBtn = document.getElementById("easyBtn");
-const mediumBtn = document.getElementById("mediumBtn");
-const hardBtn = document.getElementById("hardBtn");
+const easyBtn          = document.getElementById("easyBtn");
+const mediumBtn        = document.getElementById("mediumBtn");
+const hardBtn          = document.getElementById("hardBtn");
 
-const restartBtn = document.getElementById("restartBtn");
-const victoryRestartBtn = document.getElementById("victoryRestartBtn");
+const restartBtn       = document.getElementById("restartBtn");
+const victoryRestartBtn= document.getElementById("victoryRestartBtn");
 
-const menuBtn = document.getElementById("menuBtn");
+const menuBtn          = document.getElementById("menuBtn");
 const menuFromGameOver = document.getElementById("menuFromGameOver");
-const menuFromVictory = document.getElementById("menuFromVictory");
+const menuFromVictory  = document.getElementById("menuFromVictory");
 
-const faseText = document.getElementById("fase");
-const vidasText = document.getElementById("vidas");
+const faseText         = document.getElementById("fase");
+const vidasText        = document.getElementById("vidas");
 
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
+const canvas           = document.getElementById("gameCanvas");
+const ctx              = canvas.getContext("2d");
 
 
 /* =========================
    ESTADO DO JOGO
 ========================= */
 
+const CANVAS_W  = 500;
+const CANVAS_H  = 650;
+
+// Zonas fixas (Y inicial → Y final, de cima para baixo)
+const ZONA = {
+    meta:    { y1:  0,  y2:  60 },   // chegou!
+    grama1:  { y1: 60,  y2:  80 },   // faixa de segurança superior
+    rio:     { y1: 80,  y2: 240 },   // água — 4 pistas de troncos
+    grama2:  { y1: 240, y2: 290 },   // faixa de segurança do meio
+    estrada: { y1: 290, y2: 510 },   // carros — 5 pistas
+    calcada: { y1: 510, y2: 650 },   // início / calçada segura
+};
+
+// Pistas dos carros (centro Y de cada faixa dentro da estrada)
+const CAR_LANES  = [310, 355, 400, 445, 490];
+// Pistas dos troncos (centro Y de cada faixa dentro do rio)
+const LOG_LANES  = [ 95, 135, 175, 215];
+
 const game = {
-    running: false,
+    running:    false,
     difficulty: "easy",
-    phase: 1,
-    lives: 3,
-    maxPhase: 7,
+    phase:      1,
+    lives:      3,
+    maxPhase:   7,
+    // controle de morte: só mata 1× por "queda no rio"
+    dyingCooldown: 0,
     player: {
         x: 230,
-        y: 600,
+        y: 570,
         size: 28,
-        step: 40
+        step: 40,
+        onLog: null   // referência ao tronco em que está
     },
     cars: [],
     logs: []
@@ -52,68 +73,56 @@ const game = {
    DIFICULDADE
 ========================= */
 
-const difficultySpeed = {
-    easy: 2,
-    medium: 3,
-    hard: 5
-};
+const diffSpeed = { easy: 1.8, medium: 3, hard: 5 };
 
 
 /* =========================
    EVENTOS
 ========================= */
 
-easyBtn.addEventListener("click", () => startGame("easy"));
+easyBtn.addEventListener("click",   () => startGame("easy"));
 mediumBtn.addEventListener("click", () => startGame("medium"));
-hardBtn.addEventListener("click", () => startGame("hard"));
+hardBtn.addEventListener("click",   () => startGame("hard"));
 
-restartBtn.addEventListener("click", restartGame);
+restartBtn.addEventListener("click",        restartGame);
 victoryRestartBtn.addEventListener("click", restartGame);
 
-menuBtn.addEventListener("click", goToMenu);
-menuFromGameOver.addEventListener("click", goToMenu);
-menuFromVictory.addEventListener("click", goToMenu);
-
-
-/* MOBILE */
+menuBtn.addEventListener("click",           goToMenu);
+menuFromGameOver.addEventListener("click",  goToMenu);
+menuFromVictory.addEventListener("click",   goToMenu);
 
 document.querySelectorAll("[data-move]").forEach(btn => {
-    btn.addEventListener("click", () => {
-        movePlayer(btn.dataset.move);
-    });
+    btn.addEventListener("click", () => movePlayer(btn.dataset.move));
 });
-
-
-/* TECLADO */
 
 document.addEventListener("keydown", (e) => {
     if (!game.running) return;
-    if (e.key === "ArrowUp")    movePlayer("up");
-    if (e.key === "ArrowDown")  movePlayer("down");
-    if (e.key === "ArrowLeft")  movePlayer("left");
-    if (e.key === "ArrowRight") movePlayer("right");
+    const map = {
+        ArrowUp:"up", ArrowDown:"down",
+        ArrowLeft:"left", ArrowRight:"right"
+    };
+    if (map[e.key]) { e.preventDefault(); movePlayer(map[e.key]); }
 });
 
 
 /* =========================
-   INICIAR
+   INICIAR / REINICIAR
 ========================= */
 
 function startGame(mode) {
-    game.difficulty = mode;
-    game.phase = 1;
-    game.lives = 3;
-    game.running = true;
+    game.difficulty     = mode;
+    game.phase          = 1;
+    game.lives          = 3;
+    game.running        = true;
+    game.dyingCooldown  = 0;
     resetPlayer();
     createObjects();
     updateHUD();
     showScreen("game");
-    gameLoop();
+    requestAnimationFrame(gameLoop);
 }
 
-function restartGame() {
-    startGame(game.difficulty);
-}
+function restartGame() { startGame(game.difficulty); }
 
 function goToMenu() {
     game.running = false;
@@ -126,20 +135,16 @@ function goToMenu() {
 ========================= */
 
 function showScreen(type) {
-    menu.classList.add("hidden");
-    gameScreen.classList.add("hidden");
-    gameOverScreen.classList.add("hidden");
-    victoryScreen.classList.add("hidden");
+    [menu, gameScreen, gameOverScreen, victoryScreen]
+        .forEach(s => s.classList.add("hidden"));
 
-    if (type === "game")     gameScreen.classList.remove("hidden");
-    if (type === "gameover") gameOverScreen.classList.remove("hidden");
-    if (type === "victory")  victoryScreen.classList.remove("hidden");
-    if (type === "menu")     menu.classList.remove("hidden");
+    ({ menu, game: gameScreen, gameover: gameOverScreen, victory: victoryScreen }
+        [type]).classList.remove("hidden");
 }
 
 
 /* =========================
-   LOOP
+   LOOP PRINCIPAL
 ========================= */
 
 function gameLoop() {
@@ -155,127 +160,108 @@ function gameLoop() {
 ========================= */
 
 function update() {
+    // cooldown de morte (evita perder múltiplas vidas num frame)
+    if (game.dyingCooldown > 0) game.dyingCooldown--;
+
     moveCars();
-    if (game.phase >= 4) {
+
+    if (hasRiver()) {
         moveLogs();
+        applyLogMovement();   // carrega o player junto ao tronco
         checkWater();
     }
+
     checkCarCollision();
     checkVictory();
 }
 
 
 /* =========================
-   DESENHO
+   CRIAÇÃO DE OBJETOS
 ========================= */
 
-function draw() {
-    ctx.clearRect(0, 0, 500, 650);
-    drawBackground();
-    if (game.phase >= 4) {
-        drawRiver();
-        drawLogs();
+function hasRiver() { return game.phase >= 4; }
+
+function createCars() {
+    game.cars = [];
+    // Número de carros cresce com a fase, máximo 5 por pista
+    const laneCount = Math.min(CAR_LANES.length, 3 + Math.floor(game.phase / 2));
+    for (let l = 0; l < laneCount; l++) {
+        const carH   = 28;
+        const laneY  = CAR_LANES[l] - carH / 2;
+        const speed  = (diffSpeed[game.difficulty] + Math.random() * 1.5)
+                       * (l % 2 === 0 ? 1 : -1); // alternância de direção
+        const count  = 2 + Math.floor(Math.random() * 2);
+        for (let i = 0; i < count; i++) {
+            game.cars.push({
+                x:      (CANVAS_W / count) * i + Math.random() * 40,
+                y:      laneY,
+                width:  55,
+                height: carH,
+                speed,
+                color:  ["#ff006e","#8338ec","#ffbe0b","#fb5607","#3a86ff"][l % 5]
+            });
+        }
     }
-    drawRoad();
-    drawCars();
-    drawPlayer();
 }
 
-function drawBackground() {
-    ctx.fillStyle = "#05131f";
-    ctx.fillRect(0, 0, 500, 650);
-    ctx.strokeStyle = "#00f7ff";
-    for (let i = 0; i < 650; i += 40) {
-        ctx.beginPath();
-        ctx.moveTo(0, i);
-        ctx.lineTo(500, i);
-        ctx.stroke();
-    }
+function createLogs() {
+    game.logs = [];
+    // 4 pistas de troncos, direções alternadas, bem distribuídos
+    LOG_LANES.forEach((laneY, i) => {
+        const logH    = 28;
+        const logW    = 100;
+        const gap     = 30;          // espaço mínimo entre troncos
+        const speed   = (1.2 + i * 0.4) * (i % 2 === 0 ? 1 : -1);
+        const count   = 3;           // 3 troncos por pista = sempre há passagem
+        const spacing = (CANVAS_W + logW) / count;
+        for (let j = 0; j < count; j++) {
+            game.logs.push({
+                x:      j * spacing,
+                y:      laneY - logH / 2,
+                width:  logW,
+                height: logH,
+                speed
+            });
+        }
+    });
 }
 
-function drawRoad() {
-    ctx.fillStyle = "#222";
-    ctx.fillRect(0, 290, 500, 220);
-}
-
-function drawRiver() {
-    ctx.fillStyle = "#003566";
-    ctx.fillRect(0, 80, 500, 150);
-}
-
-function drawPlayer() {
-    let p = game.player;
-    ctx.fillStyle = "#00ff88";
-    ctx.shadowColor = "#00ff88";
-    ctx.shadowBlur = 15;
-    ctx.fillRect(p.x, p.y, p.size, p.size);
-    ctx.shadowBlur = 0;
+function createObjects() {
+    createCars();
+    if (hasRiver()) createLogs();
 }
 
 
 /* =========================
-   CARROS
+   MOVIMENTO
 ========================= */
-
-function createCars() {
-    game.cars = [];
-    let amount = 3 + game.phase;
-    for (let i = 0; i < amount; i++) {
-        game.cars.push({
-            x: Math.random() * 500,
-            y: 320 + (i % 4) * 45,
-            width: 50,
-            height: 25,
-            speed: difficultySpeed[game.difficulty] + Math.random() * 2,
-            color: ["#ff006e", "#8338ec", "#ffbe0b"][i % 3]
-        });
-    }
-}
-
-function drawCars() {
-    game.cars.forEach(car => {
-        ctx.fillStyle = car.color;
-        ctx.fillRect(car.x, car.y, car.width, car.height);
-    });
-}
 
 function moveCars() {
     game.cars.forEach(car => {
         car.x += car.speed;
-        if (car.x > 550) car.x = -60;
-    });
-}
-
-
-/* =========================
-   TRONCOS
-========================= */
-
-function createLogs() {
-    game.logs = [];
-    for (let i = 0; i < 4; i++) {
-        game.logs.push({
-            x: i * 120,
-            y: 110 + (i % 2) * 60,
-            width: 90,
-            height: 25,
-            speed: 2
-        });
-    }
-}
-
-function drawLogs() {
-    game.logs.forEach(log => {
-        ctx.fillStyle = "#9c6644";
-        ctx.fillRect(log.x, log.y, log.width, log.height);
+        if (car.speed > 0 && car.x > CANVAS_W + 10)  car.x = -car.width - 10;
+        if (car.speed < 0 && car.x < -car.width - 10) car.x = CANVAS_W + 10;
     });
 }
 
 function moveLogs() {
     game.logs.forEach(log => {
         log.x += log.speed;
-        if (log.x > 520) log.x = -100;
+        if (log.speed > 0 && log.x > CANVAS_W + 10)   log.x = -log.width - 10;
+        if (log.speed < 0 && log.x < -log.width - 10)  log.x = CANVAS_W + 10;
     });
+}
+
+// Se o player está em cima de um tronco, move junto
+function applyLogMovement() {
+    const p   = game.player;
+    const log = getLogUnder();
+    if (log) {
+        p.x += log.speed;
+        // Mantém dentro do canvas horizontalmente
+        p.x = Math.max(0, Math.min(CANVAS_W - p.size, p.x));
+    }
 }
 
 
@@ -285,18 +271,20 @@ function moveLogs() {
 
 function resetPlayer() {
     game.player.x = 230;
-    game.player.y = 600;
+    game.player.y = 570;
+    game.player.onLog = null;
 }
 
-function movePlayer(direction) {
-    let p = game.player;
-    let s = p.step;
-    if (direction === "up")    p.y -= s;
-    if (direction === "down")  p.y += s;
-    if (direction === "left")  p.x -= s;
-    if (direction === "right") p.x += s;
-    p.x = Math.max(0, Math.min(470, p.x));
-    p.y = Math.max(0, Math.min(620, p.y));
+function movePlayer(dir) {
+    if (!game.running) return;
+    const p = game.player;
+    const s = p.step;
+    if (dir === "up")    p.y -= s;
+    if (dir === "down")  p.y += s;
+    if (dir === "left")  p.x -= s;
+    if (dir === "right") p.x += s;
+    p.x = Math.max(0, Math.min(CANVAS_W - p.size, p.x));
+    p.y = Math.max(0, Math.min(CANVAS_H - p.size, p.y));
 }
 
 
@@ -304,63 +292,42 @@ function movePlayer(direction) {
    COLISÕES
 ========================= */
 
-function checkCarCollision() {
-    let p = game.player;
-    game.cars.forEach(car => {
-        if (
-            p.x < car.x + car.width &&
-            p.x + p.size > car.x &&
-            p.y < car.y + car.height &&
-            p.y + p.size > car.y
-        ) {
-            loseLife();
-        }
-    });
+function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+    return ax < bx + bw && ax + aw > bx &&
+           ay < by + bh && ay + ah > by;
+}
+
+// Retorna o tronco sob o player (ou null)
+function getLogUnder() {
+    const p = game.player;
+    return game.logs.find(log =>
+        rectsOverlap(p.x, p.y, p.size, p.size,
+                     log.x, log.y, log.width, log.height)
+    ) || null;
 }
 
 function checkWater() {
-    let p = game.player;
-    // CORREÇÃO: zona estendida até y < 290 para eliminar o gap entre o rio (y:80-230) e a estrada (y:290)
-    if (p.y >= 80 && p.y < 290) {
-        let safe = false;
-        game.logs.forEach(log => {
-            if (
-                p.x < log.x + log.width &&
-                p.x + p.size > log.x &&
-                p.y < log.y + log.height &&
-                p.y + p.size > log.y
-            ) {
-                safe = true;
-                p.x += log.speed;
-            }
-        });
-        if (!safe) loseLife();
-    }
+    if (game.dyingCooldown > 0) return;
+    const p = game.player;
+    // Só verifica se o player está dentro da zona do rio
+    if (p.y + p.size <= ZONA.rio.y1 || p.y >= ZONA.rio.y2) return;
+    if (!getLogUnder()) loseLife();
 }
 
-
-/* =========================
-   VIDAS
-========================= */
-
-function loseLife() {
-    game.lives--;
-    updateHUD();
-    if (game.lives <= 0) {
-        game.running = false;
-        showScreen("gameover");
-        return;
+function checkCarCollision() {
+    if (game.dyingCooldown > 0) return;
+    const p = game.player;
+    for (const car of game.cars) {
+        if (rectsOverlap(p.x, p.y, p.size, p.size,
+                         car.x, car.y, car.width, car.height)) {
+            loseLife();
+            return;   // uma morte por frame basta
+        }
     }
-    resetPlayer();
 }
-
-
-/* =========================
-   FASES
-========================= */
 
 function checkVictory() {
-    if (game.player.y <= 20) {
+    if (game.player.y + game.player.size <= ZONA.meta.y2) {
         game.phase++;
         if (game.phase > game.maxPhase) {
             game.running = false;
@@ -373,9 +340,21 @@ function checkVictory() {
     }
 }
 
-function createObjects() {
-    createCars();
-    if (game.phase >= 4) createLogs();
+
+/* =========================
+   VIDAS
+========================= */
+
+function loseLife() {
+    game.lives--;
+    game.dyingCooldown = 60;   // ~1 segundo de imunidade após morrer
+    updateHUD();
+    if (game.lives <= 0) {
+        game.running = false;
+        showScreen("gameover");
+        return;
+    }
+    resetPlayer();
 }
 
 
@@ -384,8 +363,144 @@ function createObjects() {
 ========================= */
 
 function updateHUD() {
-    faseText.textContent = game.phase;
-    vidasText.textContent = game.lives;
+    faseText.textContent  = game.phase;
+    vidasText.textContent = "❤️".repeat(Math.max(0, game.lives));
+}
+
+
+/* =========================
+   DESENHO
+========================= */
+
+function draw() {
+    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    drawBackground();
+    if (hasRiver()) { drawRiver(); drawLogs(); }
+    drawGrassStrips();
+    drawRoad();
+    drawCars();
+    drawPlayer();
+    drawZoneLabels();
+}
+
+function drawBackground() {
+    ctx.fillStyle = "#05131f";
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.strokeStyle = "rgba(0,247,255,0.08)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i < CANVAS_H; i += 40) {
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(CANVAS_W, i); ctx.stroke();
+    }
+}
+
+function drawGrassStrips() {
+    ctx.fillStyle = "#1a4d2e";
+    // faixa superior (entre rio e meta)
+    ctx.fillRect(0, ZONA.grama1.y1, CANVAS_W, ZONA.grama1.y2 - ZONA.grama1.y1);
+    // faixa do meio (entre rio e estrada)
+    ctx.fillRect(0, ZONA.grama2.y1, CANVAS_W, ZONA.grama2.y2 - ZONA.grama2.y1);
+    // calçada inferior
+    ctx.fillStyle = "#2d4a22";
+    ctx.fillRect(0, ZONA.calcada.y1, CANVAS_W, ZONA.calcada.y2 - ZONA.calcada.y1);
+}
+
+function drawRiver() {
+    ctx.fillStyle = "#003566";
+    ctx.fillRect(0, ZONA.rio.y1, CANVAS_W, ZONA.rio.y2 - ZONA.rio.y1);
+    // ondas decorativas
+    ctx.strokeStyle = "rgba(0,100,200,0.4)";
+    ctx.lineWidth = 2;
+    for (let y = ZONA.rio.y1 + 20; y < ZONA.rio.y2; y += 40) {
+        ctx.beginPath();
+        for (let x = 0; x < CANVAS_W; x += 20) {
+            ctx.moveTo(x, y);
+            ctx.quadraticCurveTo(x + 10, y - 5, x + 20, y);
+        }
+        ctx.stroke();
+    }
+}
+
+function drawRoad() {
+    ctx.fillStyle = "#1a1a1a";
+    ctx.fillRect(0, ZONA.estrada.y1, CANVAS_W, ZONA.estrada.y2 - ZONA.estrada.y1);
+    // faixas tracejadas
+    ctx.setLineDash([20, 15]);
+    ctx.strokeStyle = "#444";
+    ctx.lineWidth = 2;
+    CAR_LANES.slice(0, -1).forEach(laneY => {
+        const y = laneY + 14;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_W, y); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+}
+
+function drawLogs() {
+    game.logs.forEach(log => {
+        // corpo do tronco
+        ctx.fillStyle = "#7c4a1e";
+        ctx.beginPath();
+        ctx.roundRect(log.x, log.y, log.width, log.height, 6);
+        ctx.fill();
+        // veios de madeira
+        ctx.strokeStyle = "#9c6644";
+        ctx.lineWidth = 2;
+        for (let i = 1; i < 4; i++) {
+            const lx = log.x + (log.width / 4) * i;
+            ctx.beginPath();
+            ctx.moveTo(lx, log.y + 3);
+            ctx.lineTo(lx, log.y + log.height - 3);
+            ctx.stroke();
+        }
+    });
+}
+
+function drawCars() {
+    game.cars.forEach(car => {
+        // carroceria
+        ctx.fillStyle = car.color;
+        ctx.beginPath();
+        ctx.roundRect(car.x, car.y, car.width, car.height, 5);
+        ctx.fill();
+        // janelas
+        ctx.fillStyle = "rgba(0,0,0,0.4)";
+        ctx.fillRect(car.x + 8,  car.y + 5, 15, 10);
+        ctx.fillRect(car.x + 30, car.y + 5, 15, 10);
+    });
+}
+
+function drawPlayer() {
+    const p = game.player;
+    // Pisca durante cooldown de morte
+    if (game.dyingCooldown > 0 && Math.floor(game.dyingCooldown / 6) % 2 === 0) return;
+
+    ctx.shadowColor = "#00ff88";
+    ctx.shadowBlur  = 18;
+    ctx.fillStyle   = "#00ff88";
+    // corpo do sapo
+    ctx.beginPath();
+    ctx.roundRect(p.x + 2, p.y + 6, p.size - 4, p.size - 6, 8);
+    ctx.fill();
+    // cabeça
+    ctx.beginPath();
+    ctx.roundRect(p.x + 4, p.y, p.size - 8, 14, 6);
+    ctx.fill();
+    // olhos
+    ctx.fillStyle   = "#000";
+    ctx.shadowBlur  = 0;
+    ctx.beginPath(); ctx.arc(p.x + 7,  p.y + 5, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x + 21, p.y + 5, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+}
+
+function drawZoneLabels() {
+    // Indicador sutil da meta
+    ctx.fillStyle = "rgba(0,255,136,0.15)";
+    ctx.fillRect(0, 0, CANVAS_W, ZONA.meta.y2);
+    ctx.fillStyle = "#00ff88";
+    ctx.font = "bold 13px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("▲ META ▲", CANVAS_W / 2, 40);
+    ctx.textAlign = "left";
 }
 
 };
