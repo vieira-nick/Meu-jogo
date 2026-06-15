@@ -1,419 +1,521 @@
 /* ================================================================
-   QUASE PANQUECA — style.css
+   QUASE PANQUECA — script.js
    Organização:
-   1. Reset & variáveis globais
-   2. Layout base (body + .tela + .oculto)
-   3. Menu principal
-   4. HUD do jogo
-   5. Canvas
-   6. Controles touch (mobile)
-   7. Telas de resultado (game over / vitória)
-   8. Animações
+   1.  Referências ao DOM e ao canvas
+   2.  Configuração por dificuldade
+   3.  Estado global do jogo
+   4.  Navegação entre telas
+   5.  Inicialização e reinício
+   6.  Geração dos carros por fase
+   7.  Loop principal de animação
+   8.  Funções de desenho (cenário, sapo, carros)
+   9.  Movimentação dos carros
+   10. Controles do jogador (teclado)
+   11. Detecção de colisão (AABB)
+   12. Verificação de vitória de fase
+   13. Perder vida e game over
+   14. Atualização do HUD
 ================================================================ */
 
 
 /* ----------------------------------------------------------------
-   1. RESET & VARIÁVEIS GLOBAIS
-   Removemos margens padrão do navegador e definimos as cores
-   do jogo como variáveis CSS para facilitar manutenção.
+   1. REFERÊNCIAS AO DOM E AO CANVAS
+   Pegamos os elementos HTML que vamos manipular durante o jogo.
+   O `ctx` é o "contexto 2D" — é com ele que desenhamos no canvas.
 ---------------------------------------------------------------- */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+const canvas  = document.getElementById('canvas');
+const ctx     = canvas.getContext('2d');
+
+// Referências ao HUD
+const elVidas = document.getElementById('vidas');
+const elFase  = document.getElementById('faseAtual');
+
+
+/* ----------------------------------------------------------------
+   2. CONFIGURAÇÃO POR DIFICULDADE
+   Cada nível define: velocidade base dos carros, quantidade de
+   carros na pista e número total de fases para vencer.
+   A velocidade aumenta automaticamente a cada fase.
+---------------------------------------------------------------- */
+const CONFIG = {
+  facil: {
+    velocidadeBase: 1.8,  // px por frame
+    qtdCarros:      3,    // carros simultâneos na pista
+    totalFases:     3     // fases para completar o jogo
+  },
+  medio: {
+    velocidadeBase: 3.0,
+    qtdCarros:      5,
+    totalFases:     5
+  },
+  dificil: {
+    velocidadeBase: 5.0,
+    qtdCarros:      7,
+    totalFases:     7
+  }
+};
+
+// Faixas verticais (Y) onde os carros se movem — 7 faixas disponíveis
+const FAIXAS_Y = [100, 160, 220, 280, 340, 400, 460];
+
+// Cores de carro disponíveis — sorteadas aleatoriamente
+const CORES_CARRO = ['#e63946', '#f4a261', '#457b9d', '#9b59b6', '#f5c518', '#e91e63'];
+
+
+/* ----------------------------------------------------------------
+   3. ESTADO GLOBAL DO JOGO
+   Todas as variáveis que mudam durante a partida ficam aqui.
+   São resetadas a cada novo jogo pela função iniciarJogo().
+---------------------------------------------------------------- */
+let sapo;          // objeto com posição e tamanho do sapo
+let carros;        // array de objetos de carro
+let vidas;         // quantas vidas restam (começa em 3)
+let fase;          // fase atual (começa em 1)
+let dificuldade;   // string: 'facil' | 'medio' | 'dificil'
+let jogoRodando;   // boolean — false pausa o loop
+let animacaoId;    // ID do requestAnimationFrame (para cancelar)
+let cooldownDano;  // impede múltiplas colisões no mesmo frame
+
+
+/* ----------------------------------------------------------------
+   4. NAVEGAÇÃO ENTRE TELAS
+   mostrarTela(id) esconde todas as telas e exibe apenas a do id.
+   Isso evita CSS complicado — basta manipular a classe .oculto.
+---------------------------------------------------------------- */
+function mostrarTela(id) {
+  const telas = ['menuPrincipal', 'telaJogo', 'telaGameOver', 'telaVitoria'];
+  telas.forEach(nomeId => {
+    const el = document.getElementById(nomeId);
+    if (nomeId === id) {
+      el.classList.remove('oculto');
+    } else {
+      el.classList.add('oculto');
+    }
+  });
 }
 
-:root {
-  /* Cores do ambiente */
-  --cor-fundo:        #0d1f0d;
-  --cor-grama:        #2d5a1b;
-  --cor-grama-clara:  #3a7a22;
-  --cor-pista:        #4a4a4a;
-  --cor-faixa:        #f5c518;
+// Botão "Menu Principal" nas telas de resultado
+function irParaMenu() {
+  pararLoop();
+  mostrarTela('menuPrincipal');
+}
 
-  /* Cores do sapo e carros */
-  --cor-sapo:         #4caf50;
-  --cor-sapo-escuro:  #2e7d32;
-  --cor-carro-1:      #e63946;
-  --cor-carro-2:      #f4a261;
-  --cor-carro-3:      #457b9d;
-  --cor-carro-4:      #9b59b6;
-
-  /* Cores da UI */
-  --cor-texto:        #ffffff;
-  --cor-texto-muted:  rgba(255,255,255,0.6);
-  --cor-verde:        #4caf50;
-  --cor-laranja:      #ff9800;
-  --cor-vermelho:     #f44336;
-  --cor-ouro:         #f5c518;
-
-  /* Tipografia */
-  --fonte-jogo:       'Segoe UI', 'Arial Rounded MT Bold', Arial, sans-serif;
+// Botão "Jogar de Novo" repete com a mesma dificuldade
+function reiniciarJogo() {
+  iniciarJogo(dificuldade);
 }
 
 
 /* ----------------------------------------------------------------
-   2. LAYOUT BASE
-   O body centra tudo com flexbox.
-   .tela = container de cada tela do jogo.
-   .oculto = esconde a tela completamente (usado pelo JS).
+   5. INICIALIZAÇÃO DO JOGO
+   Chamada pelo clique nos botões de dificuldade do menu.
+   Configura o estado inicial e inicia o loop de animação.
 ---------------------------------------------------------------- */
-body {
-  background-color: var(--cor-fundo);
-  background-image:
-    radial-gradient(ellipse at 20% 50%, rgba(45,90,27,0.15) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 20%, rgba(76,175,80,0.08) 0%, transparent 50%);
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-family: var(--fonte-jogo);
-  color: var(--cor-texto);
-  overflow: hidden;
-}
+function iniciarJogo(nivel) {
+  dificuldade  = nivel;
+  vidas        = 3;
+  fase         = 1;
+  jogoRodando  = true;
+  cooldownDano = false;
 
-.tela {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 560px;
-  padding: 1rem;
-}
+  // Posição inicial do sapo: centro horizontal, parte inferior
+  sapo = {
+    x:       canvas.width / 2 - 20, // centralizado (largura 40px)
+    y:       510,                    // próximo ao fundo (grama)
+    largura: 40,
+    altura:  40,
+    passo:   50  // quantos pixels o sapo anda por tecla pressionada
+  };
 
-/* Classe utilitária para esconder telas — usada pelo JS */
-.oculto {
-  display: none !important;
+  gerarCarros();        // cria os carros da fase 1
+  atualizarHUD();       // mostra ❤️❤️❤️ e "Fase 1"
+  mostrarTela('telaJogo');
+
+  pararLoop();          // cancela qualquer loop anterior (segurança)
+  loopJogo();           // inicia o loop de animação
 }
 
 
 /* ----------------------------------------------------------------
-   3. MENU PRINCIPAL
-   Container central com título, emoji animado e botões de
-   dificuldade. Cada botão tem cor distinta por nível.
+   6. GERAÇÃO DOS CARROS
+   Cria o array `carros` com base na dificuldade e na fase atual.
+   A velocidade sobe 15% a cada fase (fator de progressão).
+   Carros em faixas pares vão para direita, ímpares para esquerda.
 ---------------------------------------------------------------- */
-.menu-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-}
+function gerarCarros() {
+  const cfg           = CONFIG[dificuldade];
+  const fatorFase     = 1 + (fase - 1) * 0.15; // +15% por fase
+  const velocidadeFase = cfg.velocidadeBase * fatorFase;
 
-/* Sapo animado do menu */
-.logo-sapo {
-  font-size: 72px;
-  animation: sapoFlutua 2s ease-in-out infinite alternate;
-  filter: drop-shadow(0 8px 20px rgba(76,175,80,0.4));
-  line-height: 1;
-}
+  carros = [];
 
-.titulo-jogo {
-  font-size: 42px;
-  font-weight: 900;
-  color: var(--cor-ouro);
-  letter-spacing: -1px;
-  text-shadow: 0 0 30px rgba(245,197,24,0.4);
-}
+  for (let i = 0; i < cfg.qtdCarros; i++) {
+    const faixaY  = FAIXAS_Y[i % FAIXAS_Y.length]; // distribui nas faixas
+    const direcao = i % 2 === 0 ? 1 : -1;           // alterna esquerda/direita
+    const cor     = CORES_CARRO[i % CORES_CARRO.length];
 
-.subtitulo {
-  font-size: 15px;
-  color: var(--cor-texto-muted);
-  letter-spacing: 0.5px;
-}
+    // Espaçamento inicial: distribui os carros ao longo da largura do canvas
+    const xInicial = (canvas.width / cfg.qtdCarros) * i + Math.random() * 80;
 
-.separador {
-  width: 60px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--cor-ouro), transparent);
-  margin: 4px 0;
-}
-
-.label-dificuldade {
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  color: var(--cor-texto-muted);
-}
-
-/* Grid dos 3 botões de dificuldade */
-.botoes-dificuldade {
-  display: flex;
-  gap: 12px;
-  width: 100%;
-}
-
-.btn-dificuldade {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 16px 8px;
-  border: 2px solid transparent;
-  border-radius: 14px;
-  background: rgba(255,255,255,0.06);
-  color: var(--cor-texto);
-  cursor: pointer;
-  transition: transform 0.15s, background 0.15s, border-color 0.15s;
-  font-family: var(--fonte-jogo);
-}
-
-.btn-dificuldade:hover {
-  transform: translateY(-3px);
-  background: rgba(255,255,255,0.12);
-}
-
-.btn-dificuldade:active {
-  transform: translateY(0) scale(0.97);
-}
-
-.btn-icone  { font-size: 28px; }
-.btn-texto  { font-size: 16px; font-weight: 700; }
-.btn-desc   { font-size: 11px; color: var(--cor-texto-muted); }
-
-/* Cores individuais por dificuldade */
-.btn-facil:hover   { border-color: var(--cor-verde); }
-.btn-medio:hover   { border-color: var(--cor-laranja); }
-.btn-dificil:hover { border-color: var(--cor-vermelho); }
-
-.btn-facil .btn-texto   { color: var(--cor-verde); }
-.btn-medio .btn-texto   { color: var(--cor-laranja); }
-.btn-dificil .btn-texto { color: var(--cor-vermelho); }
-
-.instrucoes {
-  font-size: 12px;
-  color: var(--cor-texto-muted);
-  margin-top: 4px;
+    carros.push({
+      x:         xInicial,
+      y:         faixaY,
+      largura:   65,
+      altura:    34,
+      velocidade: velocidadeFase * direcao,
+      cor:       cor
+    });
+  }
 }
 
 
 /* ----------------------------------------------------------------
-   4. HUD DO JOGO
-   Barra acima do canvas com vidas (coração) e número da fase.
-   Usa flexbox para separar os itens nas extremidades.
+   7. LOOP PRINCIPAL DE ANIMAÇÃO
+   requestAnimationFrame chama loopJogo ~60x por segundo.
+   Cada "frame" segue a sequência: limpar → atualizar → desenhar.
 ---------------------------------------------------------------- */
-#hud {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 500px;
-  padding: 10px 16px;
-  background: rgba(0,0,0,0.7);
-  border-radius: 12px 12px 0 0;
-  backdrop-filter: blur(4px);
+function loopJogo() {
+  if (!jogoRodando) return;
+
+  // Limpa o canvas inteiro antes de desenhar o próximo frame
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Sequência de atualização e desenho
+  desenharCenario();
+  moverCarros();
+  desenharCarros();
+  desenharSapo();
+  verificarColisao();
+  verificarVitoriaDeFase();
+
+  // Agenda o próximo frame e guarda o ID (para poder cancelar)
+  animacaoId = requestAnimationFrame(loopJogo);
 }
 
-.hud-item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-}
-
-.hud-direita {
-  align-items: flex-end;
-}
-
-.hud-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: var(--cor-texto-muted);
-}
-
-/* Vidas (corações emoji) */
-#vidas {
-  font-size: 18px;
-  letter-spacing: 2px;
-}
-
-/* Número da fase */
-#faseAtual {
-  font-size: 22px;
-  font-weight: 900;
-  color: var(--cor-ouro);
-}
-
-.hud-titulo {
-  font-size: 11px;
-  letter-spacing: 3px;
-  color: var(--cor-texto-muted);
-  font-weight: 700;
+// Para o loop de animação com segurança
+function pararLoop() {
+  jogoRodando = false;
+  if (animacaoId) {
+    cancelAnimationFrame(animacaoId);
+    animacaoId = null;
+  }
 }
 
 
 /* ----------------------------------------------------------------
-   5. CANVAS
-   O elemento onde o jogo é renderizado pelo JavaScript.
-   Fica colado ao HUD com bordas arredondadas apenas embaixo.
+   8. FUNÇÕES DE DESENHO
+   Tudo é desenhado no canvas com o `ctx` (contexto 2D).
+   Principais métodos:
+     ctx.fillStyle   — define a cor de preenchimento
+     ctx.fillRect(x, y, largura, altura) — desenha um retângulo
+     ctx.fillText(texto, x, y)           — escreve texto
+     ctx.beginPath() / ctx.arc()         — formas arredondadas
 ---------------------------------------------------------------- */
-#canvas {
-  display: block;
-  border-radius: 0 0 12px 12px;
-  border: 2px solid rgba(255,255,255,0.1);
-  border-top: none;
-  /* Impede que o canvas fique borrado em telas de alta densidade */
-  image-rendering: pixelated;
+
+// Desenha o fundo: grama de início, estrada com faixas, grama de chegada
+function desenharCenario() {
+  // --- GRAMA DE CHEGADA (topo) ---
+  ctx.fillStyle = '#2d5a1b';
+  ctx.fillRect(0, 0, canvas.width, 80);
+
+  // Texto de destino
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font      = 'bold 12px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('🏁  CHEGADA', canvas.width / 2, 48);
+
+  // --- ESTRADA ---
+  ctx.fillStyle = '#3a3a3a';
+  ctx.fillRect(0, 80, canvas.width, 450);
+
+  // Faixas tracejadas da estrada
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+  for (let faixaY = 80; faixaY < 530; faixaY += 60) {
+    // Cada faixa tracejada: blocos de 30px com espaço de 20px
+    for (let x = 0; x < canvas.width; x += 50) {
+      ctx.fillRect(x, faixaY, 30, 3);
+    }
+  }
+
+  // --- GRAMA DE INÍCIO (baixo) ---
+  ctx.fillStyle = '#2d5a1b';
+  ctx.fillRect(0, 530, canvas.width, 30);
+
+  // Pequenas variações de cor na grama (decoração)
+  ctx.fillStyle = '#3a7a22';
+  for (let x = 0; x < canvas.width; x += 40) {
+    ctx.fillRect(x, 530, 20, 30);
+  }
+
+  ctx.textAlign = 'left'; // reset do alinhamento
+}
+
+// Desenha o sapo como um círculo verde com olhos
+function desenharSapo() {
+  const cx = sapo.x + sapo.largura / 2;  // centro X
+  const cy = sapo.y + sapo.altura / 2;   // centro Y
+  const r  = sapo.largura / 2;           // raio do corpo
+
+  // Corpo principal
+  ctx.fillStyle = '#4caf50';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Borda escura do corpo
+  ctx.strokeStyle = '#2e7d32';
+  ctx.lineWidth   = 2;
+  ctx.stroke();
+
+  // Olho esquerdo
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(cx - 10, cy - 8, 7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Pupila esquerda
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.arc(cx - 10, cy - 8, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Olho direito
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(cx + 10, cy - 8, 7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Pupila direita
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.arc(cx + 10, cy - 8, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Sorriso
+  ctx.strokeStyle = '#2e7d32';
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy + 4, 8, 0, Math.PI);
+  ctx.stroke();
+}
+
+// Desenha todos os carros como retângulos coloridos com janelas
+function desenharCarros() {
+  for (const carro of carros) {
+    // Corpo do carro
+    ctx.fillStyle = carro.cor;
+    ctx.beginPath();
+    // Retângulo com cantos arredondados (manualmente)
+    roundRect(ctx, carro.x, carro.y, carro.largura, carro.altura, 6);
+    ctx.fill();
+
+    // Para-brisa (janela)
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillRect(carro.x + 8, carro.y + 4, carro.largura - 16, carro.altura - 14);
+
+    // Rodas
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(carro.x + 10,              carro.y + carro.altura - 2, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(carro.x + carro.largura - 10, carro.y + carro.altura - 2, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// Auxiliar: desenha retângulo com cantos arredondados
+// (não existe nativamente no canvas simples)
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y,     x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x,     y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x,     y,     x + r, y);
+  ctx.closePath();
 }
 
 
 /* ----------------------------------------------------------------
-   6. CONTROLES TOUCH (MOBILE)
-   Botões direcionais exibidos abaixo do canvas em dispositivos
-   com tela pequena. Ocultos em telas grandes (>520px).
+   9. MOVIMENTAÇÃO DOS CARROS
+   A cada frame, somamos a velocidade à posição X do carro.
+   Quando sai pela borda direita, reaparece pela esquerda, e
+   vice-versa (efeito "wraparound" ou tela contínua).
 ---------------------------------------------------------------- */
-#controles-touch {
-  display: none; /* escondido por padrão */
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  margin-top: 12px;
-}
+function moverCarros() {
+  for (const carro of carros) {
+    carro.x += carro.velocidade;
 
-.touch-row {
-  display: flex;
-  gap: 6px;
-}
+    // Saiu pela direita → reaparece pela esquerda
+    if (carro.x > canvas.width + 10) {
+      carro.x = -carro.largura;
+    }
 
-.touch-btn {
-  width: 56px;
-  height: 56px;
-  font-size: 20px;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 12px;
-  color: var(--cor-texto);
-  cursor: pointer;
-  transition: background 0.1s, transform 0.1s;
-  font-family: var(--fonte-jogo);
-}
-
-.touch-btn:active {
-  background: rgba(255,255,255,0.25);
-  transform: scale(0.93);
-}
-
-/* Mostra os controles em telas pequenas */
-@media (max-width: 520px) {
-  #controles-touch { display: flex; }
-  #hud, #canvas { width: 100%; }
+    // Saiu pela esquerda → reaparece pela direita
+    if (carro.x < -carro.largura - 10) {
+      carro.x = canvas.width;
+    }
+  }
 }
 
 
 /* ----------------------------------------------------------------
-   7. TELAS DE RESULTADO (GAME OVER / VITÓRIA)
-   Layout centralizado com ícone grande, título e dois botões.
-   Derrota usa cor vermelha, vitória usa dourado.
+   10. CONTROLES DO JOGADOR
+   Escutamos o evento 'keydown' no documento inteiro.
+   O sapo se move em "passos" discretos (não suave), como no
+   jogo original Frogger.
+   moverSapo() também é chamado pelos botões touch no HTML.
 ---------------------------------------------------------------- */
-.resultado-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 40px 32px;
-  background: rgba(0,0,0,0.6);
-  border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.1);
-  text-align: center;
-  max-width: 380px;
-  width: 100%;
-}
+document.addEventListener('keydown', (evento) => {
+  if (!jogoRodando) return;
+  moverSapo(evento.key);
+});
 
-.resultado-icone {
-  font-size: 72px;
-  animation: resultadoEntrada 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
-}
+function moverSapo(tecla) {
+  if (!jogoRodando) return;
 
-.resultado-titulo {
-  font-size: 32px;
-  font-weight: 900;
-}
+  const p = sapo.passo; // atalho: quantos px por movimento
 
-.resultado-desc {
-  font-size: 15px;
-  color: var(--cor-texto-muted);
-  line-height: 1.6;
-}
+  if (tecla === 'ArrowUp')    sapo.y -= p;
+  if (tecla === 'ArrowDown')  sapo.y += p;
+  if (tecla === 'ArrowLeft')  sapo.x -= p;
+  if (tecla === 'ArrowRight') sapo.x += p;
 
-/* Cores de destaque por resultado */
-.resultado-derrota .resultado-titulo { color: var(--cor-vermelho); }
-.resultado-derrota {
-  border-color: rgba(244,67,54,0.3);
-  box-shadow: 0 0 40px rgba(244,67,54,0.1);
-}
+  // Impede o sapo de sair pelas bordas laterais
+  sapo.x = Math.max(0, Math.min(canvas.width - sapo.largura, sapo.x));
 
-.resultado-vitoria .resultado-titulo { color: var(--cor-ouro); }
-.resultado-vitoria {
-  border-color: rgba(245,197,24,0.3);
-  box-shadow: 0 0 40px rgba(245,197,24,0.15);
-}
-
-.resultado-botoes {
-  display: flex;
-  gap: 12px;
-  margin-top: 8px;
-  width: 100%;
-}
-
-.btn-resultado {
-  flex: 1;
-  padding: 12px 16px;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: var(--fonte-jogo);
-  transition: transform 0.1s, filter 0.1s;
-}
-
-.btn-resultado:hover  { filter: brightness(1.1); transform: translateY(-1px); }
-.btn-resultado:active { transform: scale(0.97); }
-
-/* Botão principal: cor vibrante */
-.btn-tentar { background: var(--cor-verde); color: #fff; }
-.resultado-derrota .btn-tentar { background: var(--cor-vermelho); }
-.resultado-vitoria .btn-tentar { background: var(--cor-ouro); color: #000; }
-
-/* Botão secundário: neutro */
-.btn-menu {
-  background: rgba(255,255,255,0.1);
-  color: var(--cor-texto);
-  border: 1px solid rgba(255,255,255,0.2);
+  // Impede o sapo de sair pelas bordas verticais
+  sapo.y = Math.max(0, Math.min(canvas.height - sapo.altura, sapo.y));
 }
 
 
 /* ----------------------------------------------------------------
-   8. ANIMAÇÕES
-   sapoFlutua  — sapo flutuando no menu
-   piscar      — pulsação suave do título
-   resultadoEntrada — entrada do ícone de resultado
-   dano        — pisca o canvas ao levar dano (classe adicionada via JS)
+   11. DETECÇÃO DE COLISÃO (AABB)
+   AABB = Axis-Aligned Bounding Box.
+   Verifica se os retângulos do sapo e de cada carro se sobrepõem.
+   Para dois retângulos A e B se sobreporem, TODAS as 4 condições
+   abaixo precisam ser verdadeiras ao mesmo tempo:
+     A.x < B.x + B.largura   (A não está totalmente à direita de B)
+     A.x + A.largura > B.x   (A não está totalmente à esquerda de B)
+     A.y < B.y + B.altura    (A não está totalmente abaixo de B)
+     A.y + A.altura > B.y    (A não está totalmente acima de B)
+   Se qualquer uma for falsa, não há colisão.
 ---------------------------------------------------------------- */
+function verificarColisao() {
+  if (cooldownDano) return; // ignora enquanto estiver em cooldown
 
-@keyframes sapoFlutua {
-  from { transform: translateY(0px); }
-  to   { transform: translateY(-12px); }
+  // Hitbox do sapo levemente menor que o sprite (mais justo ao jogador)
+  const margem = 8;
+  const sx = sapo.x + margem;
+  const sy = sapo.y + margem;
+  const sl = sapo.largura  - margem * 2;
+  const sa = sapo.altura   - margem * 2;
+
+  for (const carro of carros) {
+    const bateu =
+      sx     < carro.x + carro.largura  &&  // sapo não passou da borda direita do carro
+      sx + sl > carro.x                 &&  // sapo não está antes da borda esquerda
+      sy     < carro.y + carro.altura   &&  // sapo não está abaixo do carro
+      sy + sa > carro.y;                    // sapo não está acima do carro
+
+    if (bateu) {
+      perderVida();
+      break; // uma colisão por frame é suficiente
+    }
+  }
 }
 
-@keyframes piscar {
-  from { opacity: 1; }
-  to   { opacity: 0.65; }
+
+/* ----------------------------------------------------------------
+   12. VERIFICAÇÃO DE VITÓRIA DE FASE
+   O sapo vence a fase quando alcança a grama do topo (y < 50).
+   Se era a última fase → vitória total.
+   Senão → avança de fase, gera novos carros mais rápidos.
+---------------------------------------------------------------- */
+function verificarVitoriaDeFase() {
+  if (sapo.y > 50) return; // ainda não chegou no topo
+
+  const cfg = CONFIG[dificuldade];
+  fase++;
+
+  if (fase > cfg.totalFases) {
+    // Todas as fases completas → vitória!
+    pararLoop();
+    mostrarTela('telaVitoria');
+  } else {
+    // Próxima fase: reseta sapo e gera carros mais rápidos
+    sapo.x = canvas.width / 2 - 20;
+    sapo.y = 510;
+    gerarCarros();   // usa a variável `fase` que já foi incrementada
+    atualizarHUD();
+    flashFase();     // pisca indicador de fase no canvas
+  }
 }
 
-@keyframes resultadoEntrada {
-  from { transform: scale(0) rotate(-20deg); opacity: 0; }
-  to   { transform: scale(1) rotate(0deg);  opacity: 1; }
+// Exibe brevemente "FASE X" no centro do canvas ao avançar de fase
+function flashFase() {
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle   = '#f5c518';
+  ctx.font        = 'bold 48px Arial';
+  ctx.textAlign   = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`FASE ${fase}`, canvas.width / 2, canvas.height / 2);
+
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'alphabetic';
 }
 
-/* Piscada vermelha no canvas ao levar dano */
-@keyframes danoCanvas {
-  0%   { box-shadow: 0 0 0 0 rgba(244,67,54,0); }
-  30%  { box-shadow: 0 0 0 8px rgba(244,67,54,0.7); }
-  100% { box-shadow: 0 0 0 0 rgba(244,67,54,0); }
+
+/* ----------------------------------------------------------------
+   13. PERDER VIDA E GAME OVER
+   Ao colidir: decrementa vidas, reseta posição do sapo e ativa
+   cooldown para evitar múltiplas perdas no mesmo instante.
+   Se vidas chegar a 0 → exibe tela de game over.
+---------------------------------------------------------------- */
+function perderVida() {
+  vidas--;
+  atualizarHUD();
+
+  // Efeito visual: pisca o canvas de vermelho
+  canvas.classList.add('dano');
+  setTimeout(() => canvas.classList.remove('dano'), 400);
+
+  if (vidas <= 0) {
+    // Pequeno delay para o jogador ver o que aconteceu
+    setTimeout(() => {
+      pararLoop();
+      mostrarTela('telaGameOver');
+    }, 400);
+    return;
+  }
+
+  // Volta o sapo ao início com cooldown para não perder vidas em sequência
+  sapo.x       = canvas.width / 2 - 20;
+  sapo.y       = 510;
+  cooldownDano = true;
+
+  // Cooldown de 1 segundo de invencibilidade
+  setTimeout(() => { cooldownDano = false; }, 1000);
 }
 
-#canvas.dano {
-  animation: danoCanvas 0.4s ease-out;
+
+/* ----------------------------------------------------------------
+   14. ATUALIZAÇÃO DO HUD
+   Sincroniza os elementos HTML do HUD com o estado atual do jogo.
+   Coração cheio ❤️ por vida restante, número da fase à direita.
+---------------------------------------------------------------- */
+function atualizarHUD() {
+  // Exibe N corações = N vidas restantes
+  elVidas.textContent = '❤️'.repeat(Math.max(0, vidas));
+
+  // Número da fase (limitado ao total de fases da dificuldade)
+  const cfg       = CONFIG[dificuldade];
+  const faseExibir = Math.min(fase, cfg.totalFases);
+  elFase.textContent = `${faseExibir} / ${cfg.totalFases}`;
 }
