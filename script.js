@@ -1,88 +1,136 @@
 ```javascript
-/* ============================
-   ESTADO DO JOGO
-============================ */
+window.onload = function(){
+
+/* =========================
+   ELEMENTOS
+========================= */
+
+const menu = document.getElementById("menu");
+const gameScreen = document.getElementById("gameScreen");
+const gameOverScreen = document.getElementById("gameOver");
+const victoryScreen = document.getElementById("victory");
+
+const easyBtn = document.getElementById("easyBtn");
+const mediumBtn = document.getElementById("mediumBtn");
+const hardBtn = document.getElementById("hardBtn");
+
+const restartBtn = document.getElementById("restartBtn");
+const victoryRestartBtn = document.getElementById("victoryRestartBtn");
+
+const faseText = document.getElementById("fase");
+const vidasText = document.getElementById("vidas");
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-const game = {
-    running: false,
-    level: 1,
-    lives: 3,
-    difficulty: "easy",
-    maxLevel: 7,
 
-    player: {
-        x: 220,
-        y: 580,
-        size: 30,
-        step: 40
+/* =========================
+   ESTADO DO JOGO
+========================= */
+
+const game = {
+
+    running:false,
+
+    difficulty:"easy",
+
+    phase:1,
+
+    lives:3,
+
+    maxPhase:7,
+
+    player:{
+        x:230,
+        y:600,
+        size:28,
+        step:40
     },
 
-    cars: [],
-    logs: []
+    cars:[],
+
+    logs:[]
 };
 
 
-/* ============================
-   ELEMENTOS HTML
-============================ */
+/* =========================
+   DIFICULDADE
+========================= */
 
-const levelText = document.getElementById("level");
-const livesText = document.getElementById("lives");
+const difficultySpeed = {
 
+    easy:2,
 
-/* ============================
-   CONFIG
-============================ */
+    medium:3,
 
-const difficultyConfig = {
-    easy: 2,
-    medium: 3,
-    hard: 5
+    hard:5
 };
 
 
-/* ============================
-   INICIAR JOGO
-============================ */
+/* =========================
+   EVENTOS
+========================= */
+
+easyBtn.addEventListener("click",()=>startGame("easy"));
+
+mediumBtn.addEventListener("click",()=>startGame("medium"));
+
+hardBtn.addEventListener("click",()=>startGame("hard"));
+
+restartBtn.addEventListener("click",restartGame);
+
+victoryRestartBtn.addEventListener("click",restartGame);
+
+
+/* MOBILE */
+
+document.querySelectorAll("[data-move]").forEach(btn=>{
+
+    btn.addEventListener("click",()=>{
+
+        movePlayer(btn.dataset.move);
+    });
+});
+
+
+/* TECLADO */
+
+document.addEventListener("keydown",(e)=>{
+
+    if(!game.running) return;
+
+    if(e.key==="ArrowUp") movePlayer("up");
+    if(e.key==="ArrowDown") movePlayer("down");
+    if(e.key==="ArrowLeft") movePlayer("left");
+    if(e.key==="ArrowRight") movePlayer("right");
+});
+
+
+/* =========================
+   INICIAR
+========================= */
 
 function startGame(mode){
 
     game.difficulty = mode;
-    game.level = 1;
+
+    game.phase = 1;
+
     game.lives = 3;
+
     game.running = true;
 
     resetPlayer();
+
     createObjects();
+
     updateHUD();
 
-    showScreen("gameScreen");
+    showScreen("game");
 
     gameLoop();
 }
 
-
-/* ============================
-   TELAS
-============================ */
-
-function showScreen(id){
-
-    document.querySelectorAll(".screen")
-        .forEach(screen => screen.classList.add("hidden"));
-
-    document.getElementById(id)
-        .classList.remove("hidden");
-}
-
-function goMenu(){
-
-    game.running = false;
-    showScreen("menu");
-}
 
 function restartGame(){
 
@@ -90,126 +138,149 @@ function restartGame(){
 }
 
 
-/* ============================
-   LOOP PRINCIPAL
-============================ */
+/* =========================
+   TELAS
+========================= */
+
+function showScreen(type){
+
+    menu.classList.add("hidden");
+    gameScreen.classList.add("hidden");
+    gameOverScreen.classList.add("hidden");
+    victoryScreen.classList.add("hidden");
+
+
+    if(type==="game"){
+
+        gameScreen.classList.remove("hidden");
+    }
+
+    if(type==="gameover"){
+
+        gameOverScreen.classList.remove("hidden");
+    }
+
+    if(type==="victory"){
+
+        victoryScreen.classList.remove("hidden");
+    }
+
+    if(type==="menu"){
+
+        menu.classList.remove("hidden");
+    }
+}
+
+
+/* =========================
+   LOOP
+========================= */
 
 function gameLoop(){
 
     if(!game.running) return;
 
     update();
+
     draw();
 
     requestAnimationFrame(gameLoop);
 }
 
 
-/* ============================
+/* =========================
    UPDATE
-============================ */
+========================= */
 
 function update(){
 
     moveCars();
 
-    if(game.level >= 4){
+    if(game.phase>=4){
+
         moveLogs();
+
         checkWater();
     }
 
-    checkCollision();
+    checkCarCollision();
+
     checkVictory();
 }
 
 
-/* ============================
+/* =========================
    DESENHO
-============================ */
+========================= */
 
 function draw(){
 
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.clearRect(0,0,500,650);
 
     drawBackground();
 
-    if(game.level >= 4){
+    if(game.phase>=4){
+
         drawRiver();
+
         drawLogs();
     }
 
     drawRoad();
+
     drawCars();
+
     drawPlayer();
 }
 
 
-/* ============================
-   FUNDO
-============================ */
-
 function drawBackground(){
 
-    ctx.fillStyle = "#05131f";
-    ctx.fillRect(0,0,480,640);
+    ctx.fillStyle="#05131f";
 
-    ctx.strokeStyle = "#00f7ff";
+    ctx.fillRect(0,0,500,650);
 
-    for(let i=0;i<640;i+=40){
+
+    ctx.strokeStyle="#00f7ff";
+
+    for(let i=0;i<650;i+=40){
 
         ctx.beginPath();
+
         ctx.moveTo(0,i);
-        ctx.lineTo(480,i);
+
+        ctx.lineTo(500,i);
+
         ctx.stroke();
     }
 }
 
-
-/* ============================
-   ESTRADA
-============================ */
 
 function drawRoad(){
 
-    ctx.fillStyle = "#222";
+    ctx.fillStyle="#222";
 
-    ctx.fillRect(0,280,480,220);
-
-    ctx.strokeStyle = "#ff00d4";
-
-    for(let i=0;i<480;i+=40){
-
-        ctx.beginPath();
-        ctx.moveTo(i,390);
-        ctx.lineTo(i+20,390);
-        ctx.stroke();
-    }
+    ctx.fillRect(0,290,500,220);
 }
 
-
-/* ============================
-   RIO
-============================ */
 
 function drawRiver(){
 
-    ctx.fillStyle = "#003566";
-    ctx.fillRect(0,80,480,140);
+    ctx.fillStyle="#003566";
+
+    ctx.fillRect(0,80,500,150);
 }
 
-
-/* ============================
-   SAPO
-============================ */
 
 function drawPlayer(){
 
     let p = game.player;
 
-    ctx.fillStyle = "#00ff88";
+    ctx.fillStyle="#00ff88";
 
-    ctx.shadowColor = "#00ff88";
-    ctx.shadowBlur = 15;
+    ctx.shadowColor="#00ff88";
+
+    ctx.shadowBlur=15;
 
     ctx.fillRect(
         p.x,
@@ -218,46 +289,47 @@ function drawPlayer(){
         p.size
     );
 
-    ctx.shadowBlur = 0;
+    ctx.shadowBlur=0;
 }
 
 
-/* ============================
+/* =========================
    CARROS
-============================ */
+========================= */
 
 function createCars(){
 
-    game.cars = [];
+    game.cars=[];
 
-    let amount = 3 + game.level;
+    let amount = 3 + game.phase;
+
 
     for(let i=0;i<amount;i++){
 
         game.cars.push({
 
-            x: Math.random()*480,
-            y: 300 + (i%4)*45,
+            x:Math.random()*500,
 
-            width: 50,
-            height: 25,
+            y:320 + (i%4)*45,
 
-            speed: difficultyConfig[game.difficulty]
-                    + Math.random()*2,
+            width:50,
 
-            color: ["#ff006e","#ffbe0b","#8338ec"][i%3]
+            height:25,
+
+            speed:difficultySpeed[game.difficulty]
+                  + Math.random()*2,
+
+            color:["#ff006e","#8338ec","#ffbe0b"][i%3]
         });
     }
 }
+
 
 function drawCars(){
 
     game.cars.forEach(car=>{
 
-        ctx.fillStyle = car.color;
-
-        ctx.shadowColor = car.color;
-        ctx.shadowBlur = 12;
+        ctx.fillStyle=car.color;
 
         ctx.fillRect(
             car.x,
@@ -265,10 +337,9 @@ function drawCars(){
             car.width,
             car.height
         );
-
-        ctx.shadowBlur = 0;
     });
 }
+
 
 function moveCars(){
 
@@ -276,42 +347,45 @@ function moveCars(){
 
         car.x += car.speed;
 
-        if(car.x > 500){
+        if(car.x>550){
 
-            car.x = -60;
+            car.x=-60;
         }
     });
 }
 
 
-/* ============================
+/* =========================
    TRONCOS
-============================ */
+========================= */
 
 function createLogs(){
 
-    game.logs = [];
+    game.logs=[];
 
     for(let i=0;i<4;i++){
 
         game.logs.push({
 
-            x: i*130,
-            y: 110 + (i%2)*60,
+            x:i*120,
 
-            width: 90,
-            height: 25,
+            y:110 + (i%2)*60,
 
-            speed: 1.5
+            width:90,
+
+            height:25,
+
+            speed:2
         });
     }
 }
+
 
 function drawLogs(){
 
     game.logs.forEach(log=>{
 
-        ctx.fillStyle = "#9c6644";
+        ctx.fillStyle="#9c6644";
 
         ctx.fillRect(
             log.x,
@@ -322,66 +396,113 @@ function drawLogs(){
     });
 }
 
+
 function moveLogs(){
 
     game.logs.forEach(log=>{
 
         log.x += log.speed;
 
-        if(log.x > 500){
+        if(log.x>520){
 
-            log.x = -100;
+            log.x=-100;
         }
     });
 }
 
 
-/* ============================
-   COLISÃO CARRO
-============================ */
+/* =========================
+   PLAYER
+========================= */
 
-function checkCollision(){
+function resetPlayer(){
+
+    game.player.x=230;
+
+    game.player.y=600;
+}
+
+
+function movePlayer(direction){
 
     let p = game.player;
+
+    let s = p.step;
+
+
+    if(direction==="up") p.y-=s;
+
+    if(direction==="down") p.y+=s;
+
+    if(direction==="left") p.x-=s;
+
+    if(direction==="right") p.x+=s;
+
+
+    p.x=Math.max(0,Math.min(470,p.x));
+
+    p.y=Math.max(0,Math.min(620,p.y));
+}
+
+
+/* =========================
+   COLISÕES
+========================= */
+
+function checkCarCollision(){
+
+    let p = game.player;
+
 
     game.cars.forEach(car=>{
 
         if(
+
             p.x < car.x + car.width &&
+
             p.x + p.size > car.x &&
+
             p.y < car.y + car.height &&
+
             p.y + p.size > car.y
+
         ){
+
             loseLife();
         }
     });
 }
 
 
-/* ============================
-   ÁGUA
-============================ */
-
 function checkWater(){
 
     let p = game.player;
 
-    if(p.y > 80 && p.y < 220){
+    if(p.y>80 && p.y<230){
 
-        let safe = false;
+        let safe=false;
+
 
         game.logs.forEach(log=>{
 
             if(
+
                 p.x < log.x + log.width &&
+
                 p.x + p.size > log.x &&
+
                 p.y < log.y + log.height &&
+
                 p.y + p.size > log.y
+
             ){
-                safe = true;
+
+                safe=true;
+
                 p.x += log.speed;
             }
         });
+
 
         if(!safe){
 
@@ -391,9 +512,9 @@ function checkWater(){
 }
 
 
-/* ============================
+/* =========================
    VIDAS
-============================ */
+========================= */
 
 function loseLife(){
 
@@ -401,10 +522,13 @@ function loseLife(){
 
     updateHUD();
 
-    if(game.lives <= 0){
 
-        game.running = false;
-        showScreen("gameOver");
+    if(game.lives<=0){
+
+        game.running=false;
+
+        showScreen("gameover");
+
         return;
     }
 
@@ -412,94 +536,56 @@ function loseLife(){
 }
 
 
-/* ============================
-   VITÓRIA
-============================ */
+/* =========================
+   FASES
+========================= */
 
 function checkVictory(){
 
-    if(game.player.y <= 20){
+    if(game.player.y<=20){
 
-        game.level++;
+        game.phase++;
 
-        if(game.level > game.maxLevel){
 
-            game.running = false;
+        if(game.phase>game.maxPhase){
+
+            game.running=false;
+
             showScreen("victory");
+
             return;
         }
 
         createObjects();
+
         resetPlayer();
+
         updateHUD();
     }
 }
 
 
-/* ============================
-   OBJETOS
-============================ */
-
 function createObjects(){
 
     createCars();
 
-    if(game.level >= 4){
+    if(game.phase>=4){
 
         createLogs();
     }
 }
 
 
-/* ============================
-   PLAYER
-============================ */
-
-function resetPlayer(){
-
-    game.player.x = 220;
-    game.player.y = 580;
-}
-
-function movePlayer(direction){
-
-    if(!game.running) return;
-
-    let p = game.player;
-    let step = p.step;
-
-    if(direction === "up") p.y -= step;
-    if(direction === "down") p.y += step;
-    if(direction === "left") p.x -= step;
-    if(direction === "right") p.x += step;
-
-    p.x = Math.max(0,Math.min(450,p.x));
-    p.y = Math.max(0,Math.min(610,p.y));
-}
-
-
-/* ============================
-   TECLADO
-============================ */
-
-document.addEventListener("keydown",(e)=>{
-
-    if(e.key==="ArrowUp") movePlayer("up");
-    if(e.key==="ArrowDown") movePlayer("down");
-    if(e.key==="ArrowLeft") movePlayer("left");
-    if(e.key==="ArrowRight") movePlayer("right");
-});
-
-
-/* ============================
+/* =========================
    HUD
-============================ */
+========================= */
 
 function updateHUD(){
 
-    levelText.textContent = game.level;
+    faseText.textContent = game.phase;
 
-    livesText.textContent =
-        "♥".repeat(game.lives);
+    vidasText.textContent = game.lives;
 }
+
+};
 ```
