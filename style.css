@@ -1,7 +1,7 @@
 ```css
-/* ============================
+/* =========================
    RESET
-============================ */
+========================= */
 
 *{
     margin:0;
@@ -9,242 +9,222 @@
     box-sizing:border-box;
 }
 
+
+/* =========================
+   BODY
+========================= */
+
 body{
-    background:#080812;
-    color:white;
+    background:#050816;
     font-family:Arial, Helvetica, sans-serif;
+    color:white;
+
     min-height:100vh;
+
     display:flex;
     justify-content:center;
     align-items:center;
+
     overflow:hidden;
 }
 
 
-/* ============================
-   UTILIDADES
-============================ */
+/* =========================
+   TELAS
+========================= */
+
+.screen{
+    width:100%;
+    max-width:700px;
+
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+
+    padding:20px;
+}
 
 .hidden{
     display:none !important;
 }
 
-.screen{
-    width:100%;
-    max-width:700px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    padding:20px;
-}
 
-.active{
-    display:flex;
-}
-
-
-/* ============================
+/* =========================
    MENU
-============================ */
+========================= */
 
 .menu-box{
+
+    width:420px;
+
     display:flex;
     flex-direction:column;
-    gap:20px;
     align-items:center;
+    gap:20px;
+
     padding:40px;
+
+    background:#0b1020;
+
     border:2px solid #00f7ff;
     border-radius:20px;
+
     box-shadow:
         0 0 20px #00f7ff,
-        0 0 40px rgba(0,247,255,.3);
-    background:rgba(255,255,255,.02);
+        0 0 50px rgba(0,247,255,.3);
 }
 
-.game-title{
-    font-size:3rem;
-    color:#ff00d4;
+.menu-box h1{
+
+    color:#ff00cc;
+
+    font-size:2.8rem;
+
     text-shadow:
-        0 0 10px #ff00d4,
-        0 0 20px #ff00d4;
+        0 0 10px #ff00cc,
+        0 0 20px #ff00cc;
 }
 
-.subtitle{
-    color:#00f7ff;
-    letter-spacing:2px;
+.menu-box p{
+    color:#cfcfcf;
 }
 
-.frog-icon{
-    font-size:5rem;
-    animation:floating 1.2s infinite alternate;
-}
 
-.menu-btn{
+/* =========================
+   BOTÕES
+========================= */
+
+button{
+
     width:220px;
     padding:14px;
+
     border:none;
     cursor:pointer;
-    font-weight:bold;
-    font-size:1rem;
 
-    background:#101020;
+    font-size:1rem;
+    font-weight:bold;
+
+    background:#101525;
     color:#00f7ff;
 
     border:2px solid #00f7ff;
-    border-radius:10px;
+    border-radius:12px;
 
-    transition:.2s;
+    transition:0.2s;
 
     box-shadow:0 0 10px #00f7ff;
 }
 
-.menu-btn:hover{
+button:hover{
+
     transform:scale(1.05);
+
     background:#00f7ff;
     color:black;
 }
 
-.instructions{
-    color:#aaa;
-    font-size:.9rem;
-}
 
-
-/* ============================
+/* =========================
    HUD
-============================ */
+========================= */
 
 #hud{
-    width:480px;
+
+    width:500px;
+
     display:flex;
     justify-content:space-between;
-    align-items:center;
 
     margin-bottom:10px;
     padding:15px;
 
-    background:#111122;
+    background:#101525;
 
     border:2px solid #9d4edd;
+    border-radius:10px;
 
-    box-shadow:
-        0 0 10px #9d4edd;
+    box-shadow:0 0 12px #9d4edd;
 
-    border-radius:12px;
-}
-
-.hud-center{
-    color:#ff00d4;
     font-weight:bold;
-    text-shadow:0 0 10px #ff00d4;
-}
-
-#level{
-    color:#00f7ff;
-}
-
-#lives{
-    color:#ff5555;
 }
 
 
-/* ============================
+/* =========================
    CANVAS
-============================ */
+========================= */
 
 #gameCanvas{
+
     border:3px solid #00f7ff;
     border-radius:12px;
 
+    background:#06101d;
+
     box-shadow:
         0 0 15px #00f7ff,
-        0 0 30px rgba(0,247,255,.4);
-
-    background:#0b0b15;
+        0 0 40px rgba(0,247,255,.4);
 }
 
 
-/* ============================
+/* =========================
    MOBILE
-============================ */
+========================= */
 
 #mobileControls{
+
     margin-top:20px;
+
     display:none;
     flex-direction:column;
     gap:10px;
 }
 
-.horizontal{
+.mobile-row{
+
     display:flex;
     gap:10px;
 }
 
-#mobileControls button{
-    width:60px;
-    height:60px;
-    font-size:22px;
-    border:none;
-    cursor:pointer;
 
-    background:#111122;
-    color:#00f7ff;
-
-    border:2px solid #00f7ff;
-    border-radius:10px;
-
-    box-shadow:0 0 10px #00f7ff;
-}
-
-
-/* ============================
+/* =========================
    RESULTADOS
-============================ */
+========================= */
 
 .result-box{
+
     display:flex;
     flex-direction:column;
-    gap:20px;
     align-items:center;
+    gap:20px;
 
     padding:40px;
 
-    border:2px solid #ff00d4;
+    background:#101525;
+
+    border:2px solid #ff00cc;
     border-radius:20px;
 
-    box-shadow:
-        0 0 20px #ff00d4;
-
-    background:#111122;
+    box-shadow:0 0 20px #ff00cc;
 }
 
 .result-box h2{
-    color:#ff00d4;
-    text-shadow:0 0 10px #ff00d4;
-}
 
-.result-box button{
-    width:180px;
-    padding:12px;
-    border:none;
-    cursor:pointer;
+    color:#ff00cc;
 
-    background:#111122;
-    color:#00f7ff;
-
-    border:2px solid #00f7ff;
-    border-radius:10px;
+    text-shadow:0 0 10px #ff00cc;
 }
 
 
-/* ============================
+/* =========================
    RESPONSIVO
-============================ */
+========================= */
 
 @media(max-width:600px){
 
-    #mobileControls{
-        display:flex;
+    .menu-box{
+        width:100%;
     }
 
     #hud{
@@ -256,22 +236,20 @@ body{
         height:auto;
     }
 
+    #mobileControls{
+        display:flex;
+    }
+
 }
 
 
-/* ============================
-   ANIMAÇÕES
-============================ */
+/* =========================
+   INFO
+========================= */
 
-@keyframes floating{
+.controls-info{
 
-    from{
-        transform:translateY(0px);
-    }
-
-    to{
-        transform:translateY(-10px);
-    }
-
+    margin-top:10px;
+    color:#888;
 }
 ```
