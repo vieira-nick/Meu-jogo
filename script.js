@@ -1,422 +1,505 @@
-/* ================================================================
-   QUASE PANQUECA — script.js
-================================================================ */
+```javascript
+/* ============================
+   ESTADO DO JOGO
+============================ */
 
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-/* ----------------------------------------------------------------
-   1. REFERÊNCIAS AO DOM E AO CANVAS
----------------------------------------------------------------- */
-const canvas  = document.getElementById('canvas');
-const ctx     = canvas.getContext('2d');
+const game = {
+    running: false,
+    level: 1,
+    lives: 3,
+    difficulty: "easy",
+    maxLevel: 7,
 
-const elVidas = document.getElementById('vidas');
-const elFase  = document.getElementById('faseAtual');
+    player: {
+        x: 220,
+        y: 580,
+        size: 30,
+        step: 40
+    },
 
-
-/* ----------------------------------------------------------------
-   2. CONFIGURAÇÃO POR DIFICULDADE
----------------------------------------------------------------- */
-const CONFIG = {
-  facil: {
-    velocidadeBase: 1.8,
-    qtdCarros:      3,
-    totalFases:     3
-  },
-  medio: {
-    velocidadeBase: 3.0,
-    qtdCarros:      5,
-    totalFases:     5
-  },
-  dificil: {
-    velocidadeBase: 5.0,
-    qtdCarros:      7,
-    totalFases:     7
-  }
+    cars: [],
+    logs: []
 };
 
-const FAIXAS_Y    = [100, 160, 220, 280, 340, 400, 460];
-const CORES_CARRO = ['#e63946', '#f4a261', '#457b9d', '#9b59b6', '#f5c518', '#e91e63'];
+
+/* ============================
+   ELEMENTOS HTML
+============================ */
+
+const levelText = document.getElementById("level");
+const livesText = document.getElementById("lives");
 
 
-/* ----------------------------------------------------------------
-   3. ESTADO GLOBAL DO JOGO
----------------------------------------------------------------- */
-let sapo;
-let carros;
-let vidas;
-let fase;
-let dificuldade;
-let jogoRodando;
-let animacaoId;
-let cooldownDano;
+/* ============================
+   CONFIG
+============================ */
+
+const difficultyConfig = {
+    easy: 2,
+    medium: 3,
+    hard: 5
+};
 
 
-/* ----------------------------------------------------------------
-   4. NAVEGAÇÃO ENTRE TELAS
----------------------------------------------------------------- */
-function mostrarTela(id) {
-  const telas = ['menuPrincipal', 'telaJogo', 'telaGameOver', 'telaVitoria'];
-  telas.forEach(nomeId => {
-    const el = document.getElementById(nomeId);
-    if (nomeId === id) {
-      el.classList.remove('oculto');
-    } else {
-      el.classList.add('oculto');
+/* ============================
+   INICIAR JOGO
+============================ */
+
+function startGame(mode){
+
+    game.difficulty = mode;
+    game.level = 1;
+    game.lives = 3;
+    game.running = true;
+
+    resetPlayer();
+    createObjects();
+    updateHUD();
+
+    showScreen("gameScreen");
+
+    gameLoop();
+}
+
+
+/* ============================
+   TELAS
+============================ */
+
+function showScreen(id){
+
+    document.querySelectorAll(".screen")
+        .forEach(screen => screen.classList.add("hidden"));
+
+    document.getElementById(id)
+        .classList.remove("hidden");
+}
+
+function goMenu(){
+
+    game.running = false;
+    showScreen("menu");
+}
+
+function restartGame(){
+
+    startGame(game.difficulty);
+}
+
+
+/* ============================
+   LOOP PRINCIPAL
+============================ */
+
+function gameLoop(){
+
+    if(!game.running) return;
+
+    update();
+    draw();
+
+    requestAnimationFrame(gameLoop);
+}
+
+
+/* ============================
+   UPDATE
+============================ */
+
+function update(){
+
+    moveCars();
+
+    if(game.level >= 4){
+        moveLogs();
+        checkWater();
     }
-  });
-}
 
-function irParaMenu() {
-  pararLoop();
-  mostrarTela('menuPrincipal');
-}
-
-function reiniciarJogo() {
-  iniciarJogo(dificuldade);
+    checkCollision();
+    checkVictory();
 }
 
 
-/* ----------------------------------------------------------------
-   5. INICIALIZAÇÃO DO JOGO
----------------------------------------------------------------- */
-function iniciarJogo(nivel) {
-   alert("iniciar jogo rodou");
-   
-  dificuldade  = nivel;
-  vidas        = 3;
-  fase         = 1;
-  jogoRodando  = true;
-  cooldownDano = false;
+/* ============================
+   DESENHO
+============================ */
 
-  sapo = {
-    x:       canvas.width / 2 - 20,
-    y:       510,
-    largura: 40,
-    altura:  40,
-    passo:   50
-  };
+function draw(){
 
-  gerarCarros();
-  atualizarHUD();
-  mostrarTela('telaJogo');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  pararLoop();
-  loopJogo();
+    drawBackground();
+
+    if(game.level >= 4){
+        drawRiver();
+        drawLogs();
+    }
+
+    drawRoad();
+    drawCars();
+    drawPlayer();
 }
 
 
-/* ----------------------------------------------------------------
-   6. GERAÇÃO DOS CARROS
----------------------------------------------------------------- */
-function gerarCarros() {
-  const cfg            = CONFIG[dificuldade];
-  const fatorFase      = 1 + (fase - 1) * 0.15;
-  const velocidadeFase = cfg.velocidadeBase * fatorFase;
+/* ============================
+   FUNDO
+============================ */
 
-  carros = [];
+function drawBackground(){
 
-  for (let i = 0; i < cfg.qtdCarros; i++) {
-    const faixaY  = FAIXAS_Y[i % FAIXAS_Y.length];
-    const direcao = i % 2 === 0 ? 1 : -1;
-    const cor     = CORES_CARRO[i % CORES_CARRO.length];
-    const xInicial = (canvas.width / cfg.qtdCarros) * i + Math.random() * 80;
+    ctx.fillStyle = "#05131f";
+    ctx.fillRect(0,0,480,640);
 
-    carros.push({
-      x:          xInicial,
-      y:          faixaY,
-      largura:    65,
-      altura:     34,
-      velocidade: velocidadeFase * direcao,
-      cor:        cor
+    ctx.strokeStyle = "#00f7ff";
+
+    for(let i=0;i<640;i+=40){
+
+        ctx.beginPath();
+        ctx.moveTo(0,i);
+        ctx.lineTo(480,i);
+        ctx.stroke();
+    }
+}
+
+
+/* ============================
+   ESTRADA
+============================ */
+
+function drawRoad(){
+
+    ctx.fillStyle = "#222";
+
+    ctx.fillRect(0,280,480,220);
+
+    ctx.strokeStyle = "#ff00d4";
+
+    for(let i=0;i<480;i+=40){
+
+        ctx.beginPath();
+        ctx.moveTo(i,390);
+        ctx.lineTo(i+20,390);
+        ctx.stroke();
+    }
+}
+
+
+/* ============================
+   RIO
+============================ */
+
+function drawRiver(){
+
+    ctx.fillStyle = "#003566";
+    ctx.fillRect(0,80,480,140);
+}
+
+
+/* ============================
+   SAPO
+============================ */
+
+function drawPlayer(){
+
+    let p = game.player;
+
+    ctx.fillStyle = "#00ff88";
+
+    ctx.shadowColor = "#00ff88";
+    ctx.shadowBlur = 15;
+
+    ctx.fillRect(
+        p.x,
+        p.y,
+        p.size,
+        p.size
+    );
+
+    ctx.shadowBlur = 0;
+}
+
+
+/* ============================
+   CARROS
+============================ */
+
+function createCars(){
+
+    game.cars = [];
+
+    let amount = 3 + game.level;
+
+    for(let i=0;i<amount;i++){
+
+        game.cars.push({
+
+            x: Math.random()*480,
+            y: 300 + (i%4)*45,
+
+            width: 50,
+            height: 25,
+
+            speed: difficultyConfig[game.difficulty]
+                    + Math.random()*2,
+
+            color: ["#ff006e","#ffbe0b","#8338ec"][i%3]
+        });
+    }
+}
+
+function drawCars(){
+
+    game.cars.forEach(car=>{
+
+        ctx.fillStyle = car.color;
+
+        ctx.shadowColor = car.color;
+        ctx.shadowBlur = 12;
+
+        ctx.fillRect(
+            car.x,
+            car.y,
+            car.width,
+            car.height
+        );
+
+        ctx.shadowBlur = 0;
     });
-  }
+}
+
+function moveCars(){
+
+    game.cars.forEach(car=>{
+
+        car.x += car.speed;
+
+        if(car.x > 500){
+
+            car.x = -60;
+        }
+    });
 }
 
 
-/* ----------------------------------------------------------------
-   7. LOOP PRINCIPAL DE ANIMAÇÃO
----------------------------------------------------------------- */
-function loopJogo() {
-  if (!jogoRodando) return;
+/* ============================
+   TRONCOS
+============================ */
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+function createLogs(){
 
-  desenharCenario();
-  moverCarros();
-  desenharCarros();   // ← FIX: carros agora aparecem (beginPath corrigido)
-  desenharSapo();
-  verificarColisao();
-  verificarVitoriaDeFase();
+    game.logs = [];
 
-  animacaoId = requestAnimationFrame(loopJogo);
-}
+    for(let i=0;i<4;i++){
 
-function pararLoop() {
-  jogoRodando = false;
-  if (animacaoId) {
-    cancelAnimationFrame(animacaoId);
-    animacaoId = null;
-  }
-}
+        game.logs.push({
 
+            x: i*130,
+            y: 110 + (i%2)*60,
 
-/* ----------------------------------------------------------------
-   8. FUNÇÕES DE DESENHO
----------------------------------------------------------------- */
-function desenharCenario() {
-  // Grama de chegada (topo)
-  ctx.fillStyle = '#2d5a1b';
-  ctx.fillRect(0, 0, canvas.width, 80);
+            width: 90,
+            height: 25,
 
-  ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.font      = 'bold 12px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('🏁  CHEGADA', canvas.width / 2, 48);
-
-  // Estrada
-  ctx.fillStyle = '#3a3a3a';
-  ctx.fillRect(0, 80, canvas.width, 450);
-
-  // Faixas tracejadas
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-  for (let faixaY = 80; faixaY < 530; faixaY += 60) {
-    for (let x = 0; x < canvas.width; x += 50) {
-      ctx.fillRect(x, faixaY, 30, 3);
+            speed: 1.5
+        });
     }
-  }
-
-  // Grama de início (baixo)
-  ctx.fillStyle = '#2d5a1b';
-  ctx.fillRect(0, 530, canvas.width, 30);
-
-  ctx.fillStyle = '#3a7a22';
-  for (let x = 0; x < canvas.width; x += 40) {
-    ctx.fillRect(x, 530, 20, 30);
-  }
-
-  ctx.textAlign = 'left';
 }
 
-function desenharSapo() {
-  const cx = sapo.x + sapo.largura / 2;
-  const cy = sapo.y + sapo.altura / 2;
-  const r  = sapo.largura / 2;
+function drawLogs(){
 
-  // Corpo
-  ctx.fillStyle = '#4caf50';
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fill();
+    game.logs.forEach(log=>{
 
-  ctx.strokeStyle = '#2e7d32';
-  ctx.lineWidth   = 2;
-  ctx.stroke();
+        ctx.fillStyle = "#9c6644";
 
-  // Olho esquerdo
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(cx - 10, cy - 8, 7, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#111';
-  ctx.beginPath();
-  ctx.arc(cx - 10, cy - 8, 3, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Olho direito
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(cx + 10, cy - 8, 7, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#111';
-  ctx.beginPath();
-  ctx.arc(cx + 10, cy - 8, 3, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Sorriso
-  ctx.strokeStyle = '#2e7d32';
-  ctx.lineWidth   = 2;
-  ctx.beginPath();
-  ctx.arc(cx, cy + 4, 8, 0, Math.PI);
-  ctx.stroke();
+        ctx.fillRect(
+            log.x,
+            log.y,
+            log.width,
+            log.height
+        );
+    });
 }
 
-function desenharCarros() {
-  for (const carro of carros) {
-    // FIX PRINCIPAL: beginPath() antes de roundRect evita que os carros
-    // "herdem" o caminho de desenhos anteriores e nunca apareçam
-    ctx.beginPath();
-    ctx.fillStyle = carro.cor;
-    roundRect(ctx, carro.x, carro.y, carro.largura, carro.altura, 6);
-    ctx.fill();
+function moveLogs(){
 
-    // Para-brisa
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.fillRect(carro.x + 8, carro.y + 4, carro.largura - 16, carro.altura - 14);
+    game.logs.forEach(log=>{
 
-    // Rodas
-    ctx.fillStyle = '#111';
-    ctx.beginPath();
-    ctx.arc(carro.x + 10, carro.y + carro.altura - 2, 5, 0, Math.PI * 2);
-    ctx.fill();
+        log.x += log.speed;
 
-    ctx.beginPath();
-    ctx.arc(carro.x + carro.largura - 10, carro.y + carro.altura - 2, 5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
+        if(log.x > 500){
 
-// Auxiliar: retângulo com cantos arredondados
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y,     x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x,     y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x,     y,     x + r, y);
-  ctx.closePath();
+            log.x = -100;
+        }
+    });
 }
 
 
-/* ----------------------------------------------------------------
-   9. MOVIMENTAÇÃO DOS CARROS
----------------------------------------------------------------- */
-function moverCarros() {
-  for (const carro of carros) {
-    carro.x += carro.velocidade;
+/* ============================
+   COLISÃO CARRO
+============================ */
 
-    if (carro.x > canvas.width + 10)      carro.x = -carro.largura;
-    if (carro.x < -carro.largura - 10)    carro.x = canvas.width;
-  }
+function checkCollision(){
+
+    let p = game.player;
+
+    game.cars.forEach(car=>{
+
+        if(
+            p.x < car.x + car.width &&
+            p.x + p.size > car.x &&
+            p.y < car.y + car.height &&
+            p.y + p.size > car.y
+        ){
+            loseLife();
+        }
+    });
 }
 
 
-/* ----------------------------------------------------------------
-   10. CONTROLES DO JOGADOR
----------------------------------------------------------------- */
-document.addEventListener('keydown', (evento) => {
-  if (!jogoRodando) return;
-  moverSapo(evento.key);
+/* ============================
+   ÁGUA
+============================ */
+
+function checkWater(){
+
+    let p = game.player;
+
+    if(p.y > 80 && p.y < 220){
+
+        let safe = false;
+
+        game.logs.forEach(log=>{
+
+            if(
+                p.x < log.x + log.width &&
+                p.x + p.size > log.x &&
+                p.y < log.y + log.height &&
+                p.y + p.size > log.y
+            ){
+                safe = true;
+                p.x += log.speed;
+            }
+        });
+
+        if(!safe){
+
+            loseLife();
+        }
+    }
+}
+
+
+/* ============================
+   VIDAS
+============================ */
+
+function loseLife(){
+
+    game.lives--;
+
+    updateHUD();
+
+    if(game.lives <= 0){
+
+        game.running = false;
+        showScreen("gameOver");
+        return;
+    }
+
+    resetPlayer();
+}
+
+
+/* ============================
+   VITÓRIA
+============================ */
+
+function checkVictory(){
+
+    if(game.player.y <= 20){
+
+        game.level++;
+
+        if(game.level > game.maxLevel){
+
+            game.running = false;
+            showScreen("victory");
+            return;
+        }
+
+        createObjects();
+        resetPlayer();
+        updateHUD();
+    }
+}
+
+
+/* ============================
+   OBJETOS
+============================ */
+
+function createObjects(){
+
+    createCars();
+
+    if(game.level >= 4){
+
+        createLogs();
+    }
+}
+
+
+/* ============================
+   PLAYER
+============================ */
+
+function resetPlayer(){
+
+    game.player.x = 220;
+    game.player.y = 580;
+}
+
+function movePlayer(direction){
+
+    if(!game.running) return;
+
+    let p = game.player;
+    let step = p.step;
+
+    if(direction === "up") p.y -= step;
+    if(direction === "down") p.y += step;
+    if(direction === "left") p.x -= step;
+    if(direction === "right") p.x += step;
+
+    p.x = Math.max(0,Math.min(450,p.x));
+    p.y = Math.max(0,Math.min(610,p.y));
+}
+
+
+/* ============================
+   TECLADO
+============================ */
+
+document.addEventListener("keydown",(e)=>{
+
+    if(e.key==="ArrowUp") movePlayer("up");
+    if(e.key==="ArrowDown") movePlayer("down");
+    if(e.key==="ArrowLeft") movePlayer("left");
+    if(e.key==="ArrowRight") movePlayer("right");
 });
 
-function moverSapo(tecla) {
-  if (!jogoRodando) return;
 
-  const p = sapo.passo;
+/* ============================
+   HUD
+============================ */
 
-  if (tecla === 'ArrowUp')    sapo.y -= p;
-  if (tecla === 'ArrowDown')  sapo.y += p;
-  if (tecla === 'ArrowLeft')  sapo.x -= p;
-  if (tecla === 'ArrowRight') sapo.x += p;
+function updateHUD(){
 
-  // Limita às bordas do canvas
-  sapo.x = Math.max(0, Math.min(canvas.width  - sapo.largura, sapo.x));
-  sapo.y = Math.max(0, Math.min(canvas.height - sapo.altura,  sapo.y));
+    levelText.textContent = game.level;
+
+    livesText.textContent =
+        "♥".repeat(game.lives);
 }
-
-
-/* ----------------------------------------------------------------
-   11. DETECÇÃO DE COLISÃO (AABB)
----------------------------------------------------------------- */
-function verificarColisao() {
-  if (cooldownDano) return;
-
-  const margem = 8;
-  const sx = sapo.x + margem;
-  const sy = sapo.y + margem;
-  const sl = sapo.largura  - margem * 2;
-  const sa = sapo.altura   - margem * 2;
-
-  for (const carro of carros) {
-    const bateu =
-      sx      < carro.x + carro.largura &&
-      sx + sl > carro.x                 &&
-      sy      < carro.y + carro.altura  &&
-      sy + sa > carro.y;
-
-    if (bateu) {
-      perderVida();
-      break;
-    }
-  }
-}
-
-
-/* ----------------------------------------------------------------
-   12. VERIFICAÇÃO DE VITÓRIA DE FASE
-   FIX: condição corrigida de `sapo.y > 50` para `sapo.y < 50`
-   (o sapo precisa SUBIR até o topo, não descer)
----------------------------------------------------------------- */
-function verificarVitoriaDeFase() {
-  if (sapo.y >= 50) return; // ainda não chegou no topo
-
-  const cfg = CONFIG[dificuldade];
-  fase++;
-
-  if (fase > cfg.totalFases) {
-    pararLoop();
-    mostrarTela('telaVitoria');
-  } else {
-    sapo.x = canvas.width / 2 - 20;
-    sapo.y = 510;
-    gerarCarros();
-    atualizarHUD();
-    flashFase();
-  }
-}
-
-function flashFase() {
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle    = '#f5c518';
-  ctx.font         = 'bold 48px Arial';
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(`FASE ${fase}`, canvas.width / 2, canvas.height / 2);
-
-  ctx.textAlign    = 'left';
-  ctx.textBaseline = 'alphabetic';
-}
-
-
-/* ----------------------------------------------------------------
-   13. PERDER VIDA E GAME OVER
----------------------------------------------------------------- */
-function perderVida() {
-  vidas--;
-  atualizarHUD();
-
-  canvas.classList.add('dano');
-  setTimeout(() => canvas.classList.remove('dano'), 400);
-
-  if (vidas <= 0) {
-    setTimeout(() => {
-      pararLoop();
-      mostrarTela('telaGameOver');
-    }, 400);
-    return;
-  }
-
-  sapo.x       = canvas.width / 2 - 20;
-  sapo.y       = 510;
-  cooldownDano = true;
-
-  setTimeout(() => { cooldownDano = false; }, 1000);
-}
-
-
-/* ----------------------------------------------------------------
-   14. ATUALIZAÇÃO DO HUD
----------------------------------------------------------------- */
-function atualizarHUD() {
-  elVidas.textContent = '❤️'.repeat(Math.max(0, vidas));
-
-  const cfg        = CONFIG[dificuldade];
-  const faseExibir = Math.min(fase, cfg.totalFases);
-  elFase.textContent = `${faseExibir} / ${cfg.totalFases}`;
-}
+```
