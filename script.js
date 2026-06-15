@@ -70,7 +70,6 @@ hardBtn.addEventListener("click", () => startGame("hard"));
 restartBtn.addEventListener("click", restartGame);
 victoryRestartBtn.addEventListener("click", restartGame);
 
-// Botões de voltar ao menu
 menuBtn.addEventListener("click", goToMenu);
 menuFromGameOver.addEventListener("click", goToMenu);
 menuFromVictory.addEventListener("click", goToMenu);
@@ -321,7 +320,8 @@ function checkCarCollision() {
 
 function checkWater() {
     let p = game.player;
-    if (p.y > 80 && p.y < 230) {
+    // CORREÇÃO: zona estendida até y < 290 para eliminar o gap entre o rio (y:80-230) e a estrada (y:290)
+    if (p.y >= 80 && p.y < 290) {
         let safe = false;
         game.logs.forEach(log => {
             if (
