@@ -73,7 +73,8 @@ const game = {
    DIFICULDADE
 ========================= */
 
-const diffSpeed = { easy: 1.8, medium: 3, hard: 5 };
+// Velocidade base por dificuldade (bem mais suave)
+const diffSpeed = { easy: 1.0, medium: 1.8, hard: 3.0 };
 
 
 /* =========================
@@ -185,13 +186,16 @@ function hasRiver() { return game.phase >= 4; }
 function createCars() {
     game.cars = [];
     // Número de carros cresce com a fase, máximo 5 por pista
-    const laneCount = Math.min(CAR_LANES.length, 3 + Math.floor(game.phase / 2));
+    // Pistas aumentam gradualmente: fase 1→2, fase 3→3, fase 5→4, fase 7→5
+    const laneCount = Math.min(CAR_LANES.length, 2 + Math.floor(game.phase / 2));
     for (let l = 0; l < laneCount; l++) {
         const carH   = 28;
         const laneY  = CAR_LANES[l] - carH / 2;
-        const speed  = (diffSpeed[game.difficulty] + Math.random() * 1.5)
-                       * (l % 2 === 0 ? 1 : -1); // alternância de direção
-        const count  = 2 + Math.floor(Math.random() * 2);
+        // Variação aleatória pequena para não ser muito previsível
+        const speed  = (diffSpeed[game.difficulty] + Math.random() * 0.6)
+                       * (l % 2 === 0 ? 1 : -1);
+        // Menos carros por pista — mais espaço para passar
+        const count  = 1 + Math.floor(Math.random() * 2);
         for (let i = 0; i < count; i++) {
             game.cars.push({
                 x:      (CANVAS_W / count) * i + Math.random() * 40,
@@ -210,10 +214,10 @@ function createLogs() {
     // 4 pistas de troncos, direções alternadas, bem distribuídos
     LOG_LANES.forEach((laneY, i) => {
         const logH    = 28;
-        const logW    = 100;
-        const gap     = 30;          // espaço mínimo entre troncos
-        const speed   = (1.2 + i * 0.4) * (i % 2 === 0 ? 1 : -1);
-        const count   = 3;           // 3 troncos por pista = sempre há passagem
+        const logW    = 130;          // troncos mais largos = mais fácil ficar em cima
+        const gap     = 20;
+        const speed   = (0.8 + i * 0.3) * (i % 2 === 0 ? 1 : -1);  // mais lentos
+        const count   = 3;
         const spacing = (CANVAS_W + logW) / count;
         for (let j = 0; j < count; j++) {
             game.logs.push({
