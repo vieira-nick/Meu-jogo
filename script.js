@@ -1,4 +1,3 @@
-alert("JS carregou");
 /* ================================================================
    QUASE PANQUECA — script.js
 ================================================================ */
@@ -81,6 +80,8 @@ function reiniciarJogo() {
    5. INICIALIZAÇÃO DO JOGO
 ---------------------------------------------------------------- */
 function iniciarJogo(nivel) {
+   alert("iniciar jogo rodou");
+   
   dificuldade  = nivel;
   vidas        = 3;
   fase         = 1;
