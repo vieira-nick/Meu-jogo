@@ -1,142 +1,138 @@
 ```html
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quase Panqueca V2</title>
+    <title>Quase Panqueca</title>
+
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-    <!-- MENU -->
-    <section id="menu" class="screen active">
+    <!-- =========================
+         MENU INICIAL
+    ========================== -->
+
+    <div id="menu" class="screen active">
 
         <div class="menu-box">
 
-            <h1 class="game-title">
-                QUASE PANQUECA
-            </h1>
+            <h1>🐸 QUASE PANQUECA</h1>
 
-            <p class="subtitle">
-                Neon Survival Edition
-            </p>
+            <p>Atravessar nunca foi tão perigoso.</p>
 
-            <div class="frog-icon">
-                🐸
+            <button id="easyBtn">Fácil</button>
+
+            <button id="mediumBtn">Médio</button>
+
+            <button id="hardBtn">Difícil</button>
+
+            <div class="controls-info">
+                Use ↑ ↓ ← → para mover
             </div>
-
-            <button onclick="startGame('easy')" class="menu-btn">
-                EASY MODE
-            </button>
-
-            <button onclick="startGame('medium')" class="menu-btn">
-                MEDIUM MODE
-            </button>
-
-            <button onclick="startGame('hard')" class="menu-btn">
-                HARD MODE
-            </button>
-
-            <p class="instructions">
-                Use ↑ ↓ ← → para sobreviver
-            </p>
 
         </div>
 
-    </section>
+    </div>
 
 
-    <!-- TELA DO JOGO -->
-    <section id="gameScreen" class="screen hidden">
+
+    <!-- =========================
+         TELA DO JOGO
+    ========================== -->
+
+    <div id="gameScreen" class="screen hidden">
 
         <div id="hud">
 
-            <div class="hud-left">
-                <span>LEVEL</span>
-                <strong id="level">1</strong>
+            <div>
+                Fase:
+                <span id="fase">1</span>
             </div>
 
-            <div class="hud-center">
-                QUASE PANQUECA
-            </div>
-
-            <div class="hud-right">
-                <span>LIVES</span>
-                <strong id="lives">♥♥♥</strong>
+            <div>
+                ❤️
+                <span id="vidas">3</span>
             </div>
 
         </div>
 
-        <canvas id="gameCanvas" width="480" height="640"></canvas>
 
-        <!-- MOBILE -->
+        <!-- IMPORTANTE -->
+        <!-- JS vai procurar ESSE ID -->
+        <canvas id="gameCanvas" width="500" height="650"></canvas>
+
+
+        <!-- CONTROLE MOBILE -->
+
         <div id="mobileControls">
 
-            <button onclick="movePlayer('up')">↑</button>
+            <button data-move="up">↑</button>
 
-            <div class="horizontal">
+            <div class="mobile-row">
 
-                <button onclick="movePlayer('left')">←</button>
+                <button data-move="left">←</button>
 
-                <button onclick="movePlayer('down')">↓</button>
+                <button data-move="down">↓</button>
 
-                <button onclick="movePlayer('right')">→</button>
+                <button data-move="right">→</button>
 
             </div>
 
         </div>
 
-    </section>
+    </div>
 
 
-    <!-- GAME OVER -->
-    <section id="gameOver" class="screen hidden">
+
+    <!-- =========================
+         GAME OVER
+    ========================== -->
+
+    <div id="gameOver" class="screen hidden">
 
         <div class="result-box">
 
-            <h2>GAME OVER</h2>
+            <h2>💀 GAME OVER</h2>
 
-            <p>
-                Você virou panqueca digital.
-            </p>
+            <p>Você virou panqueca.</p>
 
-            <button onclick="restartGame()">
-                TRY AGAIN
-            </button>
-
-            <button onclick="goMenu()">
-                MENU
+            <button id="restartBtn">
+                Jogar Novamente
             </button>
 
         </div>
 
-    </section>
+    </div>
 
 
-    <!-- VITÓRIA -->
-    <section id="victory" class="screen hidden">
+
+    <!-- =========================
+         VITÓRIA
+    ========================== -->
+
+    <div id="victory" class="screen hidden">
 
         <div class="result-box">
 
-            <h2>YOU SURVIVED</h2>
+            <h2>🏆 VOCÊ VENCEU</h2>
 
-            <p>
-                O sapo venceu o caos.
-            </p>
+            <p>O sapo sobreviveu.</p>
 
-            <button onclick="restartGame()">
-                PLAY AGAIN
-            </button>
-
-            <button onclick="goMenu()">
-                MENU
+            <button id="victoryRestartBtn">
+                Jogar Novamente
             </button>
 
         </div>
 
-    </section>
+    </div>
 
+
+
+    <!-- JS SEMPRE NO FINAL -->
 
     <script src="script.js"></script>
 
