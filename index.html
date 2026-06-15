@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quase Panqueca 🐸</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ============================================================
+       TELA 1: MENU PRINCIPAL
+       Primeira tela exibida ao abrir o jogo.
+       Os botões chamam iniciarJogo() passando o nível de dificuldade.
+  ============================================================ -->
+  <div id="menuPrincipal" class="tela">
+    <div class="menu-container">
+      <div class="logo-sapo">🐸</div>
+      <h1 class="titulo-jogo">Quase Panqueca</h1>
+      <p class="subtitulo">Atravesse a rua. Não vire patê.</p>
+
+      <div class="separador"></div>
+
+      <p class="label-dificuldade">Escolha a dificuldade:</p>
+      <div class="botoes-dificuldade">
+        <button class="btn-dificuldade btn-facil" onclick="iniciarJogo('facil')">
+          <span class="btn-icone">🌿</span>
+          <span class="btn-texto">Fácil</span>
+          <span class="btn-desc">3 fases · carros lentos</span>
+        </button>
+        <button class="btn-dificuldade btn-medio" onclick="iniciarJogo('medio')">
+          <span class="btn-icone">🔥</span>
+          <span class="btn-texto">Médio</span>
+          <span class="btn-desc">5 fases · carros rápidos</span>
+        </button>
+        <button class="btn-dificuldade btn-dificil" onclick="iniciarJogo('dificil')">
+          <span class="btn-icone">💀</span>
+          <span class="btn-texto">Difícil</span>
+          <span class="btn-desc">7 fases · caos total</span>
+        </button>
+      </div>
+
+      <p class="instrucoes">Use as setas ← ↑ ↓ → do teclado para mover</p>
+    </div>
+  </div>
+
+
+  <!-- ============================================================
+       TELA 2: JOGO ATIVO
+       Contém o HUD (vidas + fase) no topo e o canvas abaixo.
+       Começa oculta; aparece quando o jogo inicia.
+  ============================================================ -->
+  <div id="telaJogo" class="tela oculto">
+
+    <!-- HUD: exibido acima do canvas com vidas e fase atual -->
+    <div id="hud">
+      <div class="hud-item">
+        <span class="hud-label">Vidas</span>
+        <span id="vidas">❤️❤️❤️</span>
+      </div>
+      <div class="hud-titulo">QUASE PANQUECA</div>
+      <div class="hud-item hud-direita">
+        <span class="hud-label">Fase</span>
+        <span id="faseAtual">1</span>
+      </div>
+    </div>
+
+    <!-- Canvas: onde o jogo é desenhado pelo JavaScript -->
+    <canvas id="canvas" width="500" height="560"></canvas>
+
+    <!-- Controles touch para mobile (botões na tela) -->
+    <div id="controles-touch">
+      <div class="touch-row">
+        <button class="touch-btn" id="btn-cima" onclick="moverSapo('ArrowUp')">▲</button>
+      </div>
+      <div class="touch-row">
+        <button class="touch-btn" id="btn-esq" onclick="moverSapo('ArrowLeft')">◀</button>
+        <button class="touch-btn" id="btn-baixo" onclick="moverSapo('ArrowDown')">▼</button>
+        <button class="touch-btn" id="btn-dir" onclick="moverSapo('ArrowRight')">▶</button>
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- ============================================================
+       TELA 3: GAME OVER
+       Exibida quando o jogador perde todas as vidas.
+  ============================================================ -->
+  <div id="telaGameOver" class="tela oculto">
+    <div class="resultado-container resultado-derrota">
+      <div class="resultado-icone">💀</div>
+      <h2 class="resultado-titulo">Virou Panqueca!</h2>
+      <p class="resultado-desc">O trânsito não perdoou.<br>Tente de novo?</p>
+      <div class="resultado-botoes">
+        <button class="btn-resultado btn-tentar" onclick="reiniciarJogo()">Tentar de Novo</button>
+        <button class="btn-resultado btn-menu" onclick="irParaMenu()">Menu Principal</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ============================================================
+       TELA 4: VITÓRIA
+       Exibida quando o jogador completa todas as fases.
+  ============================================================ -->
+  <div id="telaVitoria" class="tela oculto">
+    <div class="resultado-container resultado-vitoria">
+      <div class="resultado-icone">🎉</div>
+      <h2 class="resultado-titulo">Você Escapou!</h2>
+      <p class="resultado-desc">O sapo chegou ao outro lado.<br>Um verdadeiro herói asfáltico.</p>
+      <div class="resultado-botoes">
+        <button class="btn-resultado btn-tentar" onclick="reiniciarJogo()">Jogar Novamente</button>
+        <button class="btn-resultado btn-menu" onclick="irParaMenu()">Menu Principal</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Script carregado por último para garantir que o HTML já existe -->
+  <script src="script.js"></script>
+</body>
+</html>
