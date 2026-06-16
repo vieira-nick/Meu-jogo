@@ -2,7 +2,10 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Quase Panqueca 🐸</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -15,7 +18,7 @@
             <h1>Quase Panqueca</h1>
             <p class="subtitle">Atravesse a rua. Não vire patê.</p>
             <button id="playBtn" class="btn-play">▶ Jogar</button>
-            <div class="controls-info">Use ↑ ↓ ← → ou os botões na tela</div>
+            <div class="controls-info">Use ↑ ↓ ← → ou os botões abaixo</div>
         </div>
     </div>
 
@@ -23,7 +26,7 @@
     <div id="gameScreen" class="screen hidden">
         <div id="hud">
             <div class="hud-item">Fase <span id="fase">1</span></div>
-            <div class="hud-item" id="hud-lives">❤️❤️❤️</div>
+            <div class="hud-item"><span id="vidas">❤️❤️❤️</span></div>
             <div class="hud-item">⭐ <span id="score">0</span></div>
             <button id="menuBtn">🏠</button>
         </div>
