@@ -24,6 +24,27 @@ const scoreText        = document.getElementById("score");
 const canvas           = document.getElementById("gameCanvas");
 const ctx              = canvas.getContext("2d");
 
+/* =========================
+   ESCALA RESPONSIVA DO CANVAS
+   Internamente o canvas é sempre 500x650.
+   Calculamos o maior tamanho visual que cabe na tela
+   deixando espaço para HUD + controles mobile.
+========================= */
+function resizeCanvas() {
+    const reservedH = 240; // HUD + controles + margens
+    const reservedW = 24;
+    const maxW = window.innerWidth  - reservedW;
+    const maxH = window.innerHeight - reservedH;
+    const scale = Math.min(maxW / 500, maxH / 650, 1);
+    const dispW = Math.floor(500 * scale);
+    const dispH = Math.floor(650 * scale);
+    document.documentElement.style.setProperty("--canvas-display-w", dispW + "px");
+    document.documentElement.style.setProperty("--canvas-display-h", dispH + "px");
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
+window.addEventListener("orientationchange", () => setTimeout(resizeCanvas, 300));
+
 
 /* =========================
    CONSTANTES DE LAYOUT
@@ -641,24 +662,4 @@ function drawCars() {
         ctx.fillStyle = "rgba(150,220,255,0.35)";
         if (goRight) {
             ctx.beginPath(); ctx.roundRect(x + w - 20, y - 6, 14, 9, 2); ctx.fill();
-            ctx.beginPath(); ctx.roundRect(x + 6,       y - 6, 10, 9, 2); ctx.fill();
-        } else {
-            ctx.beginPath(); ctx.roundRect(x + 6,       y - 6, 14, 9, 2); ctx.fill();
-            ctx.beginPath(); ctx.roundRect(x + w - 16,  y - 6, 10, 9, 2); ctx.fill();
-        }
-
-        // rodas
-        [x + 7, x + w - 13].forEach(wx => {
-            ctx.fillStyle = "#111";
-            ctx.beginPath(); ctx.ellipse(wx, y + h - 1, 6, 5, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = "#555";
-            ctx.beginPath(); ctx.ellipse(wx, y + h - 1, 3, 3, 0, 0, Math.PI * 2); ctx.fill();
-        });
-
-        // faróis dianteiros com brilho
-        const headX = goRight ? x + w - 4 : x + 2;
-        ctx.fillStyle = "#fffbe0";
-        ctx.shadowColor = "#fffbe0";
-        ctx.shadowBlur = 14;
-        ctx.beginPath(); ctx.ellipse(headX, y + 5,  3, 2.5, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(headX, y + h - 5,
+            ctx.beginPath(); ctx.roundRect(x + 6,       y -
