@@ -3,42 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blue Frog</title>
+    <title>Quase Panqueca 🐸</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- =========================
-         MENU INICIAL
-    ========================== -->
-    <div id="menu" class="screen active">
+
+    <!-- MENU -->
+    <div id="menu" class="screen">
         <div class="menu-box">
-            <h1>🐸 Blue Frog</h1>
-            <p>Atravessar nunca foi tão perigoso.</p>
-            <button id="easyBtn">Fácil</button>
-            <button id="mediumBtn">Médio</button>
-            <button id="hardBtn">Difícil</button>
-            <div class="controls-info">
-                Use ↑ ↓ ← → para mover
-            </div>
+            <div class="frog-icon">🐸</div>
+            <h1>Quase Panqueca</h1>
+            <p class="subtitle">Atravesse a rua. Não vire patê.</p>
+            <button id="playBtn" class="btn-play">▶ Jogar</button>
+            <div class="controls-info">Use ↑ ↓ ← → ou os botões na tela</div>
         </div>
     </div>
-    <!-- =========================
-         TELA DO JOGO
-    ========================== -->
+
+    <!-- TELA DO JOGO -->
     <div id="gameScreen" class="screen hidden">
         <div id="hud">
-            <div>
-                Fase:
-                <span id="fase">1</span>
-            </div>
-            <div>
-                ❤️
-                <span id="vidas">3</span>
-            </div>
-            <button id="menuBtn">🏠 Menu</button>
+            <div class="hud-item">Fase <span id="fase">1</span></div>
+            <div class="hud-item" id="hud-lives">❤️❤️❤️</div>
+            <div class="hud-item">⭐ <span id="score">0</span></div>
+            <button id="menuBtn">🏠</button>
         </div>
         <canvas id="gameCanvas" width="500" height="650"></canvas>
-        <!-- CONTROLE MOBILE -->
         <div id="mobileControls">
             <button data-move="up">↑</button>
             <div class="mobile-row">
@@ -48,29 +37,37 @@
             </div>
         </div>
     </div>
-    <!-- =========================
-         GAME OVER
-    ========================== -->
+
+    <!-- GAME OVER -->
     <div id="gameOver" class="screen hidden">
         <div class="result-box">
-            <h2>💀 GAME OVER</h2>
-            <p>Você virou panqueca.</p>
-            <button id="restartBtn">Jogar Novamente</button>
-            <button id="menuFromGameOver">🏠 Menu Principal</button>
+            <div class="result-icon">💀</div>
+            <h2>Virou Panqueca!</h2>
+            <p>O trânsito não perdoou.</p>
+            <div class="scores">
+                <div class="score-line">Pontos: <strong id="finalScoreOver">0</strong></div>
+                <div class="score-line record">🏆 Recorde: <strong id="finalHighScoreOver">0</strong></div>
+            </div>
+            <button id="restartBtn">↺ Tentar de Novo</button>
+            <button id="menuFromGameOver" class="btn-secondary">🏠 Menu</button>
         </div>
     </div>
-    <!-- =========================
-         VITÓRIA
-    ========================== -->
+
+    <!-- VITÓRIA -->
     <div id="victory" class="screen hidden">
-        <div class="result-box">
-            <h2>🏆 VOCÊ VENCEU</h2>
-            <p>O sapo sobreviveu.</p>
-            <button id="victoryRestartBtn">Jogar Novamente</button>
-            <button id="menuFromVictory">🏠 Menu Principal</button>
+        <div class="result-box win">
+            <div class="result-icon">🏆</div>
+            <h2>Você Escapou!</h2>
+            <p>O sapo chegou ao outro lado!</p>
+            <div class="scores">
+                <div class="score-line">Pontos: <strong id="finalScore">0</strong></div>
+                <div class="score-line record">🏆 Recorde: <strong id="finalHighScore">0</strong></div>
+            </div>
+            <button id="victoryRestartBtn">▶ Jogar Novamente</button>
+            <button id="menuFromVictory" class="btn-secondary">🏠 Menu</button>
         </div>
     </div>
-    <!-- JS SEMPRE NO FINAL -->
+
     <script src="script.js"></script>
 </body>
 </html>
