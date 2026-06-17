@@ -125,19 +125,26 @@ document.addEventListener("keydown", (e) => {
    INICIAR / REINICIAR
 ========================= */
 
+let loopId = null;
+
 function startGame() {
+    // Para qualquer loop anterior antes de iniciar
+    game.running = false;
+    if (loopId) { cancelAnimationFrame(loopId); loopId = null; }
+
     game.phase         = 1;
     game.lives         = 3;
     game.score         = 0;
-    game.running       = true;
+    game.tick          = 0;
     game.dyingCooldown = 0;
     game.phaseTimer    = 0;
     game.particles     = [];
+    game.running       = true;
     resetPlayer();
     createObjects();
     updateHUD();
     showScreen("game");
-    requestAnimationFrame(gameLoop);
+    loopId = requestAnimationFrame(gameLoop);
 }
 
 function restartGame() { startGame(); }
@@ -153,10 +160,15 @@ function goToMenu() {
 ========================= */
 
 function showScreen(type) {
-    [menu, gameScreen, gameOverScreen, victoryScreen]
-        .forEach(s => s.classList.add("hidden"));
-    ({ menu, game: gameScreen, gameover: gameOverScreen, victory: victoryScreen }
-        [type]).classList.remove("hidden");
+    menu.classList.add("hidden");
+    gameScreen.classList.add("hidden");
+    gameOverScreen.classList.add("hidden");
+    victoryScreen.classList.add("hidden");
+
+    if (type === "menu")     menu.classList.remove("hidden");
+    if (type === "game")     gameScreen.classList.remove("hidden");
+    if (type === "gameover") gameOverScreen.classList.remove("hidden");
+    if (type === "victory")  victoryScreen.classList.remove("hidden");
 }
 
 
@@ -165,10 +177,10 @@ function showScreen(type) {
 ========================= */
 
 function gameLoop() {
-    if (!game.running) return;
+    if (!game.running) { loopId = null; return; }
     update();
     draw();
-    requestAnimationFrame(gameLoop);
+    loopId = requestAnimationFrame(gameLoop);
 }
 
 
@@ -662,4 +674,188 @@ function drawCars() {
         ctx.fillStyle = "rgba(150,220,255,0.35)";
         if (goRight) {
             ctx.beginPath(); ctx.roundRect(x + w - 20, y - 6, 14, 9, 2); ctx.fill();
-            ctx.beginPath(); ctx.roundRect(x + 6,       y -
+            ctx.beginPath(); ctx.roundRect(x + 6,       y - 6, 10, 9, 2); ctx.fill();
+        } else {
+            ctx.beginPath(); ctx.roundRect(x + 6,       y - 6, 14, 9, 2); ctx.fill();
+            ctx.beginPath(); ctx.roundRect(x + w - 16,  y - 6, 10, 9, 2); ctx.fill();
+        }
+
+        // rodas
+        [x + 7, x + w - 13].forEach(wx => {
+            ctx.fillStyle = "#111";
+            ctx.beginPath(); ctx.ellipse(wx, y + h - 1, 6, 5, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#555";
+            ctx.beginPath(); ctx.ellipse(wx, y + h - 1, 3, 3, 0, 0, Math.PI * 2); ctx.fill();
+        });
+
+        // faróis dianteiros com brilho
+        const headX = goRight ? x + w - 4 : x + 2;
+        ctx.fillStyle = "#fffbe0";
+        ctx.shadowColor = "#fffbe0";
+        ctx.shadowBlur = 14;
+        ctx.beginPath(); ctx.ellipse(headX, y + 5,  3, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(headX, y + h - 5, 3, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+
+        // lanternas traseiras vermelhas
+        const tailX = goRight ? x + 2 : x + w - 2;
+        ctx.fillStyle = "#ff2222";
+        ctx.shadowColor = "#ff0000";
+        ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.ellipse(tailX, y + 5,  2.5, 2, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(tailX, y + h - 5, 2.5, 2, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
+    });
+}
+
+/* --- Sapo detalhado com animação de salto --- */
+function drawPlayer() {
+    const p = game.player;
+    if (game.dyingCooldown > 0 && Math.floor(game.dyingCooldown / 5) % 2 === 0) return;
+
+    ctx.save();
+
+    // squish/stretch durante o salto
+    const jumping = p.jumping > 0;
+    const squishX = jumping ? 0.82 : 1;
+    const squishY = jumping ? 1.22 : 1;
+    const cx = p.x + p.size / 2;
+    const cy = p.y + p.size / 2;
+
+    ctx.translate(cx, cy);
+
+    // rotação baseada na direção
+    const rotMap = { up: 0, down: Math.PI, left: -Math.PI/2, right: Math.PI/2 };
+    ctx.rotate(rotMap[p.lastDir] || 0);
+    ctx.scale(squishX, squishY);
+    ctx.translate(-cx, -cy);
+
+    const px = p.x, py = p.y, ps = p.size;
+
+    // sombra no chão
+    ctx.fillStyle = "rgba(0,0,0,0.22)";
+    ctx.beginPath();
+    ctx.ellipse(px + ps/2, py + ps + 3, ps/2 - 2, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // patas traseiras (embaixo)
+    ctx.fillStyle = "#00cc66";
+    // pata esquerda
+    ctx.beginPath();
+    ctx.ellipse(px - 3, py + ps - 6, 6, 4, -0.4, 0, Math.PI * 2); ctx.fill();
+    // pata direita
+    ctx.beginPath();
+    ctx.ellipse(px + ps + 3, py + ps - 6, 6, 4, 0.4, 0, Math.PI * 2); ctx.fill();
+
+    // dedos das patas traseiras
+    ctx.fillStyle = "#009944";
+    [-5, -2, 1].forEach(d => {
+        ctx.beginPath(); ctx.ellipse(px - 7 + d, py + ps - 4, 2, 1.5, -0.6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(px + ps + 5 + d, py + ps - 4, 2, 1.5, 0.6, 0, Math.PI * 2); ctx.fill();
+    });
+
+    // corpo principal com gradiente
+    const bodyGrad = ctx.createRadialGradient(px + ps/2, py + ps*0.55, 2, px + ps/2, py + ps*0.6, ps*0.6);
+    bodyGrad.addColorStop(0,   "#22ff88");
+    bodyGrad.addColorStop(0.6, "#00cc55");
+    bodyGrad.addColorStop(1,   "#007733");
+    ctx.fillStyle = bodyGrad;
+    ctx.shadowColor = "#00ff88";
+    ctx.shadowBlur  = 14;
+    ctx.beginPath();
+    ctx.roundRect(px + 1, py + ps*0.38, ps - 2, ps*0.62, [4, 4, 8, 8]);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // barriga mais clara
+    ctx.fillStyle = "rgba(200,255,210,0.22)";
+    ctx.beginPath();
+    ctx.ellipse(px + ps/2, py + ps*0.68, ps*0.28, ps*0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // cabeça
+    const headGrad = ctx.createRadialGradient(px + ps/2, py + 8, 1, px + ps/2, py + 10, 12);
+    headGrad.addColorStop(0,   "#33ff99");
+    headGrad.addColorStop(1,   "#00aa44");
+    ctx.fillStyle = headGrad;
+    ctx.shadowColor = "#00ff88";
+    ctx.shadowBlur  = 10;
+    ctx.beginPath();
+    ctx.roundRect(px + 3, py, ps - 6, ps * 0.45, [8, 8, 4, 4]);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // patas dianteiras
+    ctx.fillStyle = "#00cc55";
+    ctx.beginPath(); ctx.ellipse(px + 2,      py + ps*0.4, 4, 3, -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(px + ps - 2, py + ps*0.4, 4, 3,  0.5, 0, Math.PI * 2); ctx.fill();
+
+    // olhos salientes
+    [[px + 7, py + 5], [px + ps - 7, py + 5]].forEach(([ex, ey]) => {
+        // globo ocular
+        ctx.fillStyle = "#00ee66";
+        ctx.shadowColor = "#00ff88";
+        ctx.shadowBlur = 6;
+        ctx.beginPath(); ctx.arc(ex, ey, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
+        // pupila
+        ctx.fillStyle = "#001a00";
+        ctx.beginPath(); ctx.arc(ex + 1, ey + 1, 2.5, 0, Math.PI * 2); ctx.fill();
+        // brilho
+        ctx.fillStyle = "rgba(255,255,255,0.7)";
+        ctx.beginPath(); ctx.arc(ex + 2, ey - 1, 1.2, 0, Math.PI * 2); ctx.fill();
+    });
+
+    // narinas
+    ctx.fillStyle = "#005522";
+    ctx.beginPath(); ctx.arc(px + 9,      py + 12, 1.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px + ps - 9, py + 12, 1.2, 0, Math.PI * 2); ctx.fill();
+
+    // sorriso
+    ctx.strokeStyle = "#005522";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(px + ps/2, py + 11, 4, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+/* --- Zona da meta pulsante --- */
+function drawMeta() {
+    const pulse = 0.08 + Math.abs(Math.sin(game.tick * 0.05)) * 0.08;
+    ctx.fillStyle = `rgba(0,255,136,${pulse})`;
+    ctx.fillRect(0, 0, CANVAS_W, ZONA.meta.y2);
+
+    // linha pulsante
+    ctx.strokeStyle = `rgba(0,255,136,${0.4 + Math.sin(game.tick * 0.08) * 0.3})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath(); ctx.moveTo(0, ZONA.meta.y2); ctx.lineTo(CANVAS_W, ZONA.meta.y2); ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = `rgba(0,255,136,${0.7 + Math.sin(game.tick * 0.1) * 0.3})`;
+    ctx.font = "bold 14px Arial";
+    ctx.textAlign = "center";
+    ctx.letterSpacing = "3px";
+    ctx.fillText("▲  M E T A  ▲", CANVAS_W / 2, 38);
+    ctx.textAlign = "left";
+    ctx.letterSpacing = "0px";
+}
+
+/* --- Helpers de cor --- */
+function lightenColor(hex, amt) {
+    const n = parseInt(hex.replace("#",""), 16);
+    const r = Math.min(255, (n >> 16) + amt);
+    const g = Math.min(255, ((n >> 8) & 0xff) + amt);
+    const b = Math.min(255, (n & 0xff) + amt);
+    return `rgb(${r},${g},${b})`;
+}
+function darkenColor(hex, amt) {
+    const n = parseInt(hex.replace("#",""), 16);
+    const r = Math.max(0, (n >> 16) - amt);
+    const g = Math.max(0, ((n >> 8) & 0xff) - amt);
+    const b = Math.max(0, (n & 0xff) - amt);
+    return `rgb(${r},${g},${b})`;
+}
+
+};
